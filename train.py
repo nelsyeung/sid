@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 from skimage.io import imread
 from skimage.transform import resize
-from tensorflow.keras import backend as K
 from tensorflow.keras.callbacks import (
     EarlyStopping,
     ModelCheckpoint,
@@ -16,22 +15,10 @@ from tensorflow.keras.layers import (
 )
 from tensorflow.keras.models import Model
 from tqdm import tqdm
-# import matplotlib.pyplot as plt
 import numpy as np
 import os
-import tensorflow as tf
 
-
-def mean_iou(y_true, y_pred):
-    prec = []
-    for t in np.arange(0.5, 1.0, 0.05):
-        y_pred_ = tf.to_int32(y_pred > t)
-        score, up_opt = tf.metrics.mean_iou(y_true, y_pred_, 2)
-        K.get_session().run(tf.local_variables_initializer())
-        with tf.control_dependencies([up_opt]):
-            score = tf.identity(score)
-        prec.append(score)
-    return K.mean(K.stack(prec), axis=0)
+from sid import metric
 
 
 path_train = os.path.join('input', 'train')
@@ -107,7 +94,8 @@ c9 = Conv2D(8, (3, 3), activation='relu', padding='same')(c9)
 outputs = Conv2D(1, (1, 1), activation='sigmoid')(c9)
 
 model = Model(inputs=[inputs], outputs=[outputs])
-model.compile(optimizer='adam', loss='binary_crossentropy', metrics=[mean_iou])
+model.compile(optimizer='adam', loss='binary_crossentropy',
+              metrics=[metric.mean_iou])
 model.summary()
 
 earlystopper = EarlyStopping(patience=5, verbose=1)
