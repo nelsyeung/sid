@@ -12,9 +12,11 @@ path_train = os.path.join('input', 'train')
 width = 128
 height = 128
 channels = 1
+progress = True if "PROGRESS" in os.environ else False
 
 print('Getting and resizing train images and masks...')
-x, y, _ = utils.get_data(path_train, width, height, channels, True, True)
+x, y, _ = utils.get_data(path_train, width, height, channels, True,
+                         progress=progress)
 
 model = nn.model(width, height, channels)
 earlystopper = EarlyStopping(patience=5, verbose=1)
