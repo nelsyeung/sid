@@ -11,14 +11,15 @@ from tensorflow.keras.models import Model
 from sid import metric
 
 
-def model(height, width, channels, summary=False):
-    """Returns a U-Net neural network model using Keras.
+def model(width, height, channels, summary=False):
+    """Return a U-Net neural network model using Keras.
 
     Args:
-        height (int): Input image height.
         width (int): Input image width.
+        height (int): Input image height.
         channels (int): Input image number of channels.
-        summary (bool): Whether to print a summary model.
+        summary (bool, optional): Whether to print a summary model.
+            Defaults to False.
 
     Returns:
         Model: The Keras neural network model.
