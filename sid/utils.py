@@ -60,3 +60,33 @@ def get_data(path, width, height, channels, target=False, progress=False):
         return x, y, sizes
 
     return x, sizes
+
+
+def rlenc(image):
+    """Return the run-length encoded string of an image."""
+    runs = []  # List of run lengths
+    r = 0  # The current run length
+    pos = 1  # Count starts from 1 per WK
+
+    for c in image.reshape(image.shape[0] * image.shape[1], order='F'):
+        if (c == 0):
+            if r != 0:
+                runs.append((pos, r))
+                pos += r
+                r = 0
+            pos += 1
+        else:
+            r += 1
+
+    # If last run is unsaved (i.e. data ends with 1)
+    if r != 0:
+        runs.append((pos, r))
+        pos += r
+        r = 0
+
+    z = ''
+
+    for run in runs:
+        z += '{} {} '.format(run[0], run[1])
+
+    return z[:-1]
