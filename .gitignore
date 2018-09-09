@@ -2,6 +2,7 @@
 *.h5
 submission.csv
 *.swp
+slurm-*.out
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
