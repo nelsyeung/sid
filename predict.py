@@ -16,7 +16,7 @@ channels = 1
 print('Getting and resizing test images...')
 x, sizes_test = utils.get_data(path_test, width, height, channels)
 
-model = load_model('model-sid.h5',
+model = load_model('model.h5',
                    custom_objects={'mean_iou': metric.mean_iou})
 preds_test = model.predict(x, verbose=1)
 
