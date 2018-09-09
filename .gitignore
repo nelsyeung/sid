@@ -1,7 +1,8 @@
+*.swp
 /input/
 *.h5
 submission.csv
-*.swp
+/*.pbs
 slurm-*.out
 
 # Byte-compiled / optimized / DLL files
