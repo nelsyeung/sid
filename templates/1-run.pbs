@@ -1,0 +1,11 @@
+#!/bin/bash
+#PBS -N sid
+#PBS -l nodes=1:ppn=28,pmem=3882mb,walltime=01:00:00
+
+export OMP_NUM_THREADS=$SLURM_NTASKS_PER_NODE
+
+module load intel impi imkl Python/3.5.4
+source .venv/bin/activate
+
+./train.py
+./predict.py
