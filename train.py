@@ -20,7 +20,6 @@ x, y, _ = utils.get_data(path_train, width, height, channels, True,
 
 model = nn.model(width, height, channels)
 earlystopper = EarlyStopping(patience=5, verbose=1)
-checkpointer = ModelCheckpoint('model.h5', verbose=1,
-                               save_best_only=True)
-results = model.fit(x, y, validation_split=0.1, batch_size=8,
-                    epochs=30, callbacks=[earlystopper, checkpointer])
+checkpointer = ModelCheckpoint('model.h5', verbose=1, save_best_only=True)
+model.fit(x, y, validation_split=0.1, batch_size=8, epochs=30,
+          callbacks=[earlystopper, checkpointer])

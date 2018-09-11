@@ -7,6 +7,7 @@ import pandas as pd
 
 from sid import metric
 from sid import utils
+import sid.nn  # NOQA The neural network needs to be imported for load_model
 
 path_test = os.path.join('input', 'test')
 width = 128
@@ -18,8 +19,7 @@ print('Getting and resizing test images...')
 x, sizes_test = utils.get_data(path_test, width, height, channels,
                                progress=progress)
 
-model = load_model('model.h5',
-                   custom_objects={'mean_iou': metric.mean_iou})
+model = load_model('model.h5', custom_objects={'mean_iou': metric.mean_iou})
 preds_test = model.predict(x, verbose=1)
 
 print('Resizing predictions to original image size...')
