@@ -3,28 +3,29 @@ from tensorflow.keras.callbacks import (
     EarlyStopping,
     ModelCheckpoint,
 )
+from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 import os
 
+from sid import metric
 from sid import nn
 from sid import utils
 
 path_train = os.path.join('input', 'train')
+file_model = 'model.h5'
 width = 128
 height = 128
 channels = 1
 batch_size = 8
 seed = 1
-progress = True if "PROGRESS" in os.environ else False
+progress = True if 'PROGRESS' in os.environ else False
 
 print('Getting and resizing train images and masks...')
 x, y, _ = utils.get_data(path_train, width, height, channels, True,
                          progress=progress)
 
-model = nn.model(width, height, channels)
-
 datagen_args = dict(
-    rotation_range=10,
+    rotation_range=20,
     width_shift_range=0.5,
     height_shift_range=0.5,
     zoom_range=0.5,
@@ -36,13 +37,20 @@ datagen_args = dict(
 datagen_x = ImageDataGenerator(**datagen_args)
 datagen_y = ImageDataGenerator(**datagen_args)
 gen_train = zip(
-    datagen_x.flow(x, batch_size=batch_size, subset="training", seed=seed),
-    datagen_y.flow(y, batch_size=batch_size, subset="training", seed=seed),
+    datagen_x.flow(x, batch_size=batch_size, subset='training', seed=seed),
+    datagen_y.flow(y, batch_size=batch_size, subset='training', seed=seed),
 )
 gen_validation = zip(
-    datagen_x.flow(x, batch_size=batch_size, subset="validation", seed=seed),
-    datagen_y.flow(y, batch_size=batch_size, subset="validation", seed=seed),
+    datagen_x.flow(x, batch_size=batch_size, subset='validation', seed=seed),
+    datagen_y.flow(y, batch_size=batch_size, subset='validation', seed=seed),
 )
+
+if os.path.exists(file_model):
+    print('Model file exists, loading ' + file_model)
+    model = load_model('model.h5',
+                       custom_objects={'mean_iou': metric.mean_iou})
+else:
+    model = nn.model(width, height, channels)
 
 earlystopper = EarlyStopping(patience=5, verbose=1)
 checkpointer = ModelCheckpoint('model.h5', verbose=1, save_best_only=True)
