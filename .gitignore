@@ -3,7 +3,8 @@
 *.h5
 submission.csv
 /*.pbs
-slurm-*.out
+/*.sbatch
+*.out
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
