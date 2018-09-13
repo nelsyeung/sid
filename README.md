@@ -39,7 +39,8 @@ file:
 ./predict.py
 ```
 
-### Progress bar
+## Environment variables
+### PROGRESS
 To log progress for different part of the scripts, set the `PROGRESS`
 environment variable:
 ```
@@ -52,4 +53,13 @@ example, all of below will log progress:
 ```
 PROGRESS=False ./train.py
 PROGRESS=0 ./train.py
+```
+
+### SEED
+The seed changes the augmentation and shuffling of input data. By default, it is
+set to 1 so that training is reproducible. However, upon running training again
+loading the previous model file, you may wish to change the seed so that it
+creates a more diverse training set.
+```
+SEED=1337 ./train.py
 ```

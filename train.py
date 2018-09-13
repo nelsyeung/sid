@@ -18,7 +18,7 @@ width = 128
 height = 128
 channels = 1
 batch_size = 8
-seed = 1
+seed = os.environ['SEED'] if 'SEED' in os.environ else 1
 progress = True if 'PROGRESS' in os.environ else False
 
 print('Getting and resizing train images and masks...')
