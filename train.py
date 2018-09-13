@@ -2,6 +2,7 @@
 from tensorflow.keras.callbacks import (
     EarlyStopping,
     ModelCheckpoint,
+    ReduceLROnPlateau,
 )
 from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
@@ -54,9 +55,11 @@ else:
 
 earlystopper = EarlyStopping(patience=5, verbose=1)
 checkpointer = ModelCheckpoint('model.h5', verbose=1, save_best_only=True)
+reduce_lr = ReduceLROnPlateau(factor=0.1, patience=5, min_lr=0.00001,
+                              verbose=1)
 model.fit_generator(gen_train,
                     epochs=60,
                     steps_per_epoch=(len(x) * 0.9),
                     validation_data=gen_validation,
                     validation_steps=(len(x) * 0.1),
-                    callbacks=[earlystopper, checkpointer])
+                    callbacks=[earlystopper, checkpointer, reduce_lr])
