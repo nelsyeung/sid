@@ -1,4 +1,4 @@
-from tensorflow.keras.layers import (
+from keras.layers import (
     Conv2D,
     Conv2DTranspose,
     Input,
@@ -6,7 +6,7 @@ from tensorflow.keras.layers import (
     MaxPooling2D,
     concatenate,
 )
-from tensorflow.keras.models import Model
+from keras.models import Model
 
 from sid import metric
 

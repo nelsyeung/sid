@@ -1,11 +1,11 @@
 #!/usr/bin/env python
-from tensorflow.keras.callbacks import (
+from keras.callbacks import (
     EarlyStopping,
     ModelCheckpoint,
     ReduceLROnPlateau,
 )
-from tensorflow.keras.models import load_model
-from tensorflow.keras.preprocessing.image import ImageDataGenerator
+from keras.models import load_model
+from keras.preprocessing.image import ImageDataGenerator
 import os
 
 from sid import metric
@@ -37,11 +37,11 @@ datagen_args = dict(
 )
 datagen_x = ImageDataGenerator(**datagen_args)
 datagen_y = ImageDataGenerator(**datagen_args)
-gen_train = zip(
+gen_train = utils.zip(
     datagen_x.flow(x, batch_size=batch_size, subset='training', seed=seed),
     datagen_y.flow(y, batch_size=batch_size, subset='training', seed=seed),
 )
-gen_validation = zip(
+gen_validation = utils.zip(
     datagen_x.flow(x, batch_size=batch_size, subset='validation', seed=seed),
     datagen_y.flow(y, batch_size=batch_size, subset='validation', seed=seed),
 )
