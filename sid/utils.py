@@ -48,7 +48,7 @@ def get_data(path, width, height, channels, target=False, progress=False):
     loop = tqdm(enumerate(ids), total=len(ids)) if progress else enumerate(ids)
 
     for n, id in loop:
-        image = skimage.io.imread(os.path.join(path, 'images', id))[:, :, 1]
+        image = skimage.io.imread(os.path.join(path, 'images', id))
         sizes.append([image.shape[0], image.shape[1]])
         x[n] = resize(image, (width, height, channels))
 
