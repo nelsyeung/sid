@@ -23,4 +23,4 @@ export LD_LIBRARY_PATH=$CUDA_HOME/lib64:$LD_LIBRARY_PATH
 
 export OMP_NUM_THREADS=$SLURM_NTASKS_PER_NODE
 
-python2 train.py
+GPUS=2 python2 train.py

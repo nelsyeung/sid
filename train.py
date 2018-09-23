@@ -4,7 +4,6 @@ from keras.callbacks import (
     ModelCheckpoint,
     ReduceLROnPlateau,
 )
-from keras.models import load_model
 from keras.preprocessing.image import ImageDataGenerator
 import os
 
@@ -18,7 +17,8 @@ width = 128
 height = 128
 channels = 1
 batch_size = 8
-seed = os.environ['SEED'] if 'SEED' in os.environ else 1
+seed = int(os.environ['SEED']) if 'SEED' in os.environ else 1
+gpus = int(os.environ['GPUS']) if 'GPUS' in os.environ else 0
 progress = True if 'PROGRESS' in os.environ else False
 
 print('Getting and resizing train images and masks...')
@@ -46,12 +46,7 @@ gen_valid = utils.zip(
     datagen_y.flow(y_valid, batch_size=batch_size, seed=seed),
 )
 
-if os.path.exists(file_model):
-    print('Model file exists, loading ' + file_model)
-    model = load_model('model.h5',
-                       custom_objects={'mean_iou': metric.mean_iou})
-else:
-    model = nn.model(width, height, channels)
+model = nn.model(width, height, channels, gpus=gpus, load=True)
 
 early_stopping = EarlyStopping(patience=5, verbose=1)
 model_checkpoint = ModelCheckpoint('model.h5', verbose=1, save_best_only=True)

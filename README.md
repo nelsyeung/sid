@@ -63,3 +63,9 @@ creates a more diverse training set.
 ```
 SEED=1337 ./train.py
 ```
+
+### GPUS
+The number of GPUs to be used:
+```
+GPUS=2 ./train.py
+```
