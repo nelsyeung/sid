@@ -4,10 +4,8 @@ from keras.callbacks import (
     ModelCheckpoint,
     ReduceLROnPlateau,
 )
-from keras.preprocessing.image import ImageDataGenerator
 import os
 
-from sid import metric
 from sid import nn
 from sid import utils
 
@@ -35,19 +33,11 @@ datagen_args = dict(
     horizontal_flip=True,
     vertical_flip=True,
 )
-datagen_x = ImageDataGenerator(**datagen_args)
-datagen_y = ImageDataGenerator(**datagen_args)
-gen_train = utils.zip(
-    datagen_x.flow(x_train, batch_size=batch_size, seed=seed),
-    datagen_y.flow(y_train, batch_size=batch_size, seed=seed),
-)
-gen_valid = utils.zip(
-    datagen_x.flow(x_valid, batch_size=batch_size, seed=seed),
-    datagen_y.flow(y_valid, batch_size=batch_size, seed=seed),
+gen_train, gen_valid = utils.preprocess_image(
+    datagen_args, x_train, y_train, x_valid, y_valid, batch_size, seed,
 )
 
 model = nn.model(width, height, channels, gpus=gpus, load=True)
-
 early_stopping = EarlyStopping(patience=5, verbose=1)
 model_checkpoint = ModelCheckpoint('model.h5', verbose=1, save_best_only=True)
 reduce_lr = ReduceLROnPlateau(factor=0.1, patience=5, min_lr=0.00001,

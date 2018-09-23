@@ -1,3 +1,4 @@
+from keras.preprocessing.image import ImageDataGenerator
 from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 import numpy as np
@@ -136,3 +137,44 @@ def zip(*iterables):
             result.append(elem)
 
         yield tuple(result)
+
+
+def preprocess_image(datagen_args, x_train, y_train, x_valid=None,
+                     y_valid=None, batch_size=8, seed=1):
+    """Preprocess image using Keras Image Preproessing.
+
+    Args:
+        datagen_args (dict): Dictionary containing arguments for Keras
+            ImageDataGenerator
+        x_train (ndarray): Numpy array of data (images).
+        y_train (ndarray): Numpy array of target data (masks).
+        x_valid (ndarray, optional): Numpy array of validation data (images).
+            Defaults to None.
+        y_valid (ndarray, optional): Numpy array of validationtarget data
+            (masks). Defaults to None.
+        batch_size (int, optional): Batch size. Defaults to 8.
+        seed (int, optional): Random seed. Defaults to 1.
+
+    Returns:
+        iterator: Keras flow iterator of preprocessed training data.
+        iterator: Keras flow iterator of preprocessed validation data. Returns
+            only if x_valid and y_valid is set.
+    """
+    datagen_x = ImageDataGenerator(**datagen_args)
+    datagen_y = ImageDataGenerator(**datagen_args)
+    gen_train = zip(
+        datagen_x.flow(x_train, batch_size=batch_size, seed=seed),
+        datagen_y.flow(y_train, batch_size=batch_size, seed=seed),
+    )
+
+    if x_valid is not None and y_valid is not None:
+        datagen_x = ImageDataGenerator(**datagen_args)
+        datagen_y = ImageDataGenerator(**datagen_args)
+        gen_valid = zip(
+            datagen_x.flow(x_valid, batch_size=batch_size, seed=seed),
+            datagen_y.flow(y_valid, batch_size=batch_size, seed=seed),
+        )
+
+        return gen_train, gen_valid
+
+    return gen_train
