@@ -1,3 +1,4 @@
+from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 import numpy as np
 import os
@@ -20,7 +21,15 @@ def resize(image, output_shape):
                                     anti_aliasing=False)
 
 
-def get_data(path, width, height, channels, target=False, progress=False):
+def mask_class(mask):
+    """Return the class of a mask's coverage for stratification."""
+    for i in range(11):
+        if (np.sum(mask) / float(12.8 * 128)) <= i:
+            return i
+
+
+def get_data(path, width, height, channels, target=False, validation_split=0.0,
+             stratify=False, seed=0, progress=False):
     """Return images data and, if target is True, masks target data.
 
     Args:
@@ -29,6 +38,12 @@ def get_data(path, width, height, channels, target=False, progress=False):
         height (int): Input image height.
         channels (int): Input image number of channels.
         target (bool, optional): Whether to return target data (masks).
+            Defaults to False.
+        validation_split (float, optional): Fraction of images reserved for
+            validation (strictly between 0 and 1).
+        stratify (bool, optional): Whether to stratify data by target coverage.
+            Defaults to False.
+        seed (int, optional): Provide random_state to train_test_split.
             Defaults to False.
         progress (bool, optional): Whether to log the progress.
             Defaults to False.
@@ -41,6 +56,7 @@ def get_data(path, width, height, channels, target=False, progress=False):
     """
     ids = os.listdir(os.path.join(path, 'images'))
     sizes = []
+    classes = [] if stratify else None
     # The use of x and y is to match the Keras Model method's arguments.
     x = np.zeros((len(ids), height, width, channels), dtype=np.uint8)
     if target:
@@ -56,7 +72,17 @@ def get_data(path, width, height, channels, target=False, progress=False):
             mask = skimage.io.imread(os.path.join(path, 'masks', id))
             y[n] = resize(mask, (width, height, channels))
 
+            if stratify:
+                classes.append(mask_class(y[n]))
+
     if target:
+        if validation_split:
+            x_train, x_valid, y_train, y_valid = train_test_split(
+                x, y, test_size=validation_split, random_state=seed,
+                stratify=classes)
+
+            return x_train, x_valid, y_train, y_valid, sizes
+
         return x, y, sizes
 
     return x, sizes

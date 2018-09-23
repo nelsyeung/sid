@@ -6,21 +6,11 @@ from keras.callbacks import (
 )
 from keras.models import load_model
 from keras.preprocessing.image import ImageDataGenerator
-from sklearn.model_selection import train_test_split
-import numpy as np
 import os
 
 from sid import metric
 from sid import nn
 from sid import utils
-
-
-def mask_class(mask):
-    """Return the class of a mask's coverage for stratification."""
-    for i in range(11):
-        if (np.sum(mask) / float(12.8 * 128)) <= i:
-            return i
-
 
 path_train = os.path.join('input', 'train')
 file_model = 'model.h5'
@@ -32,13 +22,9 @@ seed = os.environ['SEED'] if 'SEED' in os.environ else 1
 progress = True if 'PROGRESS' in os.environ else False
 
 print('Getting and resizing train images and masks...')
-x, y, _ = utils.get_data(path_train, width, height, channels, True,
-                         progress=progress)
-
-x_train, x_valid, y_train, y_valid = train_test_split(
-    x, y, test_size=0.1, random_state=1,
-    stratify=[mask_class(mask) for mask in y],
-)
+x_train, x_valid, y_train, y_valid, _ = utils.get_data(
+    path_train, width, height, channels, True, validation_split=0.1,
+    stratify=True, progress=progress)
 
 datagen_args = dict(
     rotation_range=20,
@@ -73,7 +59,7 @@ reduce_lr = ReduceLROnPlateau(factor=0.1, patience=5, min_lr=0.00001,
                               verbose=1)
 model.fit_generator(gen_train,
                     epochs=60,
-                    steps_per_epoch=(len(x) * 0.9),
+                    steps_per_epoch=(len(x_train)),
                     validation_data=gen_valid,
-                    validation_steps=(len(x) * 0.1),
+                    validation_steps=(len(x_valid)),
                     callbacks=[early_stopping, model_checkpoint, reduce_lr])
