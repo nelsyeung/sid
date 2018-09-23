@@ -29,7 +29,7 @@ def mask_class(mask):
 
 
 def get_data(path, width, height, channels, target=False, validation_split=0.0,
-             stratify=False, seed=0, progress=False):
+             stratify=False, seed=None, progress=False):
     """Return images data and, if target is True, masks target data.
 
     Args:

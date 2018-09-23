@@ -24,7 +24,7 @@ progress = True if 'PROGRESS' in os.environ else False
 print('Getting and resizing train images and masks...')
 x_train, x_valid, y_train, y_valid, _ = utils.get_data(
     path_train, width, height, channels, True, validation_split=0.1,
-    stratify=True, progress=progress)
+    stratify=True, seed=seed, progress=progress)
 
 datagen_args = dict(
     rotation_range=20,
