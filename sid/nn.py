@@ -82,7 +82,7 @@ def model(width, height, channels, gpus=0, load=False, summary=False):
 
         model = Model(inputs=[inputs], outputs=[outputs])
 
-    if gpus > 0:
+    if gpus > 1:
         model = multi_gpu_model(model, gpus=gpus)
 
     if summary:
