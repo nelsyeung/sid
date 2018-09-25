@@ -13,7 +13,7 @@ import os
 from sid import metric
 
 
-def model(width, height, channels, file_model='model.h5', load=False, gpus=0,
+def model(width, height, channels, file_model='model.h5', load=False,
           summary=False):
     """Return a U-Net neural network model using Keras.
 
@@ -81,6 +81,8 @@ def model(width, height, channels, file_model='model.h5', load=False, gpus=0,
         outputs = Conv2D(1, (1, 1), activation='sigmoid')(c9)
 
         model = Model(inputs=[inputs], outputs=[outputs])
+
+    gpus = int(os.environ['GPUS']) if 'GPUS' in os.environ else 0
 
     if gpus > 1:
         model = multi_gpu_model(model, gpus=gpus)

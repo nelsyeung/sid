@@ -6,19 +6,15 @@ import pandas as pd
 
 from sid import nn
 from sid import utils
+from sid.globals import width, height, channels, progress
 
 path_test = os.path.join('input', 'test')
-width = 128
-height = 128
-channels = 1
-gpus = int(os.environ['GPUS']) if 'GPUS' in os.environ else 0
-progress = True if "PROGRESS" in os.environ else False
 
 print('Getting and resizing test images...')
 x, sizes_test = utils.get_data(path_test, width, height, channels,
                                progress=progress)
 
-model = nn.model(width, height, channels, load=True, gpus=gpus)
+model = nn.model(width, height, channels, load=True)
 preds_test = model.predict(x, verbose=1)
 
 print('Resizing predictions to original image size...')

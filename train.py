@@ -8,16 +8,10 @@ import os
 
 from sid import nn
 from sid import utils
+from sid.globals import width, height, channels, file_model, seed, progress
 
 path_train = os.path.join('input', 'train')
-file_model = 'model.h5'
-width = 128
-height = 128
-channels = 1
 batch_size = 8
-seed = int(os.environ['SEED']) if 'SEED' in os.environ else 1
-gpus = int(os.environ['GPUS']) if 'GPUS' in os.environ else 0
-progress = True if 'PROGRESS' in os.environ else False
 
 print('Getting and resizing train images and masks...')
 x_train, x_valid, y_train, y_valid, _ = utils.get_data(
@@ -37,7 +31,7 @@ gen_train, gen_valid = utils.preprocess_image(
     datagen_args, x_train, y_train, x_valid, y_valid, batch_size, seed,
 )
 
-model = nn.model(width, height, channels, load=True, gpus=gpus)
+model = nn.model(width, height, channels, load=True)
 early_stopping = EarlyStopping(patience=5, verbose=1)
 model_checkpoint = ModelCheckpoint(file_model, verbose=1, save_best_only=True)
 reduce_lr = ReduceLROnPlateau(factor=0.1, patience=5, min_lr=0.00001,
