@@ -13,24 +13,24 @@ import os
 from sid import metric
 
 
-def model(width, height, channels, gpus=0, load=False, summary=False):
+def model(width, height, channels, file_model='model.h5', load=False, gpus=0,
+          summary=False):
     """Return a U-Net neural network model using Keras.
 
     Args:
         width (int): Input image width.
         height (int): Input image height.
         channels (int): Input image number of channels.
-        gpus (int, optional): Number of GPUs. Defaults to 0.
+        file_model (string, optional): Model file name. Defaults to model.h5.
         load (bool, optional): Load from previous model.h5 if exists.
             Defaults to False
+        gpus (int, optional): Number of GPUs. Defaults to 0.
         summary (bool, optional): Whether to print a summary model.
             Defaults to False.
 
     Returns:
         Model: The Keras neural network model.
     """
-    file_model = 'model.h5'
-
     if load and os.path.exists(file_model):
         print('Model file exists, loading ' + file_model)
         model = load_model('model.h5',
