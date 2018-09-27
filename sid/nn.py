@@ -6,6 +6,7 @@ from keras.layers import (
     Conv2DTranspose,
     UpSampling2D,
     add,
+    concatenate,
 )
 from keras.models import Model, load_model
 from keras.utils import multi_gpu_model
@@ -53,8 +54,8 @@ def identity_block(input_tensor, filters, kernel_size=3):
 
 def agent_add(encoder, decoder, filters):
     x = Conv2D(filters, 1, activation='relu', padding='same')(encoder)
-    x = add([x, decoder])
-    x = Activation('relu')(x)
+    x = concatenate([x, decoder])
+    x = Conv2D(filters, 1, activation='relu', padding='same')(x)
     return x
 
 
