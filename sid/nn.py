@@ -1,16 +1,61 @@
+from keras.applications import ResNet50
 from keras.layers import (
+    Activation,
+    BatchNormalization,
     Conv2D,
     Conv2DTranspose,
-    Input,
-    Lambda,
-    MaxPooling2D,
-    concatenate,
+    UpSampling2D,
+    add,
 )
 from keras.models import Model, load_model
 from keras.utils import multi_gpu_model
 import os
 
 from sid import metric
+
+
+def upsample_block(input_tensor, filters, kernel_size=3):
+    bn_axis = 3  # Channels last format
+
+    x = UpSampling2D()(input_tensor)
+    x = Conv2D(filters[0], kernel_size, padding='same')(x)
+    x = BatchNormalization(axis=bn_axis)(x)
+    x = Activation('relu')(x)
+
+    x = Conv2D(filters[1], kernel_size, padding='same')(x)
+    x = BatchNormalization(axis=bn_axis)(x)
+
+    shortcut = UpSampling2D()(input_tensor)
+    shortcut = Conv2D(filters[1], 2, padding='same')(shortcut)
+    shortcut = BatchNormalization(axis=bn_axis)(shortcut)
+
+    x = add([x, shortcut])
+    x = Activation('relu')(x)
+
+    return x
+
+
+def identity_block(input_tensor, filters, kernel_size=3):
+    bn_axis = 3  # Channels last format
+
+    x = Conv2D(filters, kernel_size, padding='same')(input_tensor)
+    x = BatchNormalization(axis=bn_axis)(x)
+    x = Activation('relu')(x)
+
+    x = Conv2D(filters, kernel_size, padding='same')(x)
+    x = BatchNormalization(axis=bn_axis)(x)
+
+    x = add([x, input_tensor])
+    x = Activation('relu')(x)
+
+    return x
+
+
+def agent_add(encoder, decoder, filters):
+    x = Conv2D(filters, 1, activation='relu', padding='same')(encoder)
+    x = add([x, decoder])
+    x = Activation('relu')(x)
+    return x
 
 
 def model(width, height, channels, file_model='model.h5', load=False,
@@ -36,51 +81,45 @@ def model(width, height, channels, file_model='model.h5', load=False,
         model = load_model('model.h5',
                            custom_objects={'mean_iou': metric.mean_iou})
     else:
-        inputs = Input((height, width, channels))
-        s = Lambda(lambda x: x / 255)(inputs)
+        model = ResNet50(False, input_shape=(width, width, channels))
 
-        c1 = Conv2D(8, (3, 3), activation='relu', padding='same')(s)
-        c1 = Conv2D(8, (3, 3), activation='relu', padding='same')(c1)
-        p1 = MaxPooling2D((2, 2))(c1)
+        for layer in model.layers:
+            layer.trainable = False
 
-        c2 = Conv2D(16, (3, 3), activation='relu', padding='same')(p1)
-        c2 = Conv2D(16, (3, 3), activation='relu', padding='same')(c2)
-        p2 = MaxPooling2D((2, 2))(c2)
+        x = Conv2D(512, 1, activation='relu', padding='same')(model.output)
 
-        c3 = Conv2D(32, (3, 3), activation='relu', padding='same')(p2)
-        c3 = Conv2D(32, (3, 3), activation='relu', padding='same')(c3)
-        p3 = MaxPooling2D((2, 2))(c3)
+        x = identity_block(x, 512)
+        x = identity_block(x, 512)
+        x = identity_block(x, 512)
+        x = identity_block(x, 512)
+        x = identity_block(x, 512)
+        x = upsample_block(x, [512, 256])
+        x = agent_add(model.get_layer('activation_40').output, x, 256)
 
-        c4 = Conv2D(64, (3, 3), activation='relu', padding='same')(p3)
-        c4 = Conv2D(64, (3, 3), activation='relu', padding='same')(c4)
-        p4 = MaxPooling2D(pool_size=(2, 2))(c4)
+        x = identity_block(x, 256)
+        x = identity_block(x, 256)
+        x = identity_block(x, 256)
+        x = upsample_block(x, [256, 128])
+        x = agent_add(model.get_layer('activation_22').output, x, 128)
 
-        c5 = Conv2D(128, (3, 3), activation='relu', padding='same')(p4)
-        c5 = Conv2D(128, (3, 3), activation='relu', padding='same')(c5)
+        x = identity_block(x, 128)
+        x = identity_block(x, 128)
+        x = upsample_block(x, [128, 64])
+        x = agent_add(model.get_layer('activation_10').output, x, 64)
 
-        u6 = Conv2DTranspose(64, (2, 2), strides=(2, 2), padding='same')(c5)
-        u6 = concatenate([u6, c4])
-        c6 = Conv2D(64, (3, 3), activation='relu', padding='same')(u6)
-        c6 = Conv2D(64, (3, 3), activation='relu', padding='same')(c6)
+        x = identity_block(x, 64)
+        x = identity_block(x, 64)
+        x = upsample_block(x, [64, 64])
+        x = agent_add(model.get_layer('activation_1').output, x, 64)
 
-        u7 = Conv2DTranspose(32, (2, 2), strides=(2, 2), padding='same')(c6)
-        u7 = concatenate([u7, c3])
-        c7 = Conv2D(32, (3, 3), activation='relu', padding='same')(u7)
-        c7 = Conv2D(32, (3, 3), activation='relu', padding='same')(c7)
+        x = identity_block(x, 64)
+        x = identity_block(x, 64)
+        x = identity_block(x, 64)
 
-        u8 = Conv2DTranspose(16, (2, 2), strides=(2, 2), padding='same')(c7)
-        u8 = concatenate([u8, c2])
-        c8 = Conv2D(16, (3, 3), activation='relu', padding='same')(u8)
-        c8 = Conv2D(16, (3, 3), activation='relu', padding='same')(c8)
+        x = Conv2DTranspose(1, 1, strides=2, padding='same',
+                            activation='sigmoid')(x)
 
-        u9 = Conv2DTranspose(8, (2, 2), strides=(2, 2), padding='same')(c8)
-        u9 = concatenate([u9, c1], axis=3)
-        c9 = Conv2D(8, (3, 3), activation='relu', padding='same')(u9)
-        c9 = Conv2D(8, (3, 3), activation='relu', padding='same')(c9)
-
-        outputs = Conv2D(1, (1, 1), activation='sigmoid')(c9)
-
-        model = Model(inputs=[inputs], outputs=[outputs])
+        model = Model(inputs=model.input, outputs=x)
 
     gpus = int(os.environ['GPUS']) if 'GPUS' in os.environ else 0
 

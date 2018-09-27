@@ -61,7 +61,7 @@ def get_data(path, width, height, channels, target=False, validation_split=0.0,
     # The use of x and y is to match the Keras Model method's arguments.
     x = np.zeros((len(ids), height, width, channels), dtype=np.uint8)
     if target:
-        y = np.zeros((len(ids), height, width, channels), dtype=np.bool)
+        y = np.zeros((len(ids), height, width, 1), dtype=np.bool)
     loop = tqdm(enumerate(ids), total=len(ids)) if progress else enumerate(ids)
 
     for n, id in loop:
@@ -71,7 +71,7 @@ def get_data(path, width, height, channels, target=False, validation_split=0.0,
 
         if target:
             mask = skimage.io.imread(os.path.join(path, 'masks', id))
-            y[n] = resize(mask, (width, height, channels))
+            y[n] = resize(mask, (width, height, 1))
 
             if stratify:
                 classes.append(mask_class(y[n]))
