@@ -1,96 +1,132 @@
 from keras.layers import (
+    Activation,
+    Add,
+    BatchNormalization,
     Conv2D,
     Conv2DTranspose,
+    Dropout,
     Input,
-    Lambda,
     MaxPooling2D,
     concatenate,
 )
-from keras.models import Model, load_model
-from keras.utils import multi_gpu_model
+from keras.models import Model
 import os
 
-from sid import metric
+from .globals import (
+    width,
+    height,
+    channels,
+    debug,
+    debug_dir,
+)
 
 
-def model(width, height, channels, file_model='model.h5', load=False,
-          summary=False):
-    """Return a U-Net neural network model using Keras.
+def BatchActivate(x):
+    x = BatchNormalization()(x)
+    x = Activation('relu')(x)
+    return x
 
-    Args:
-        width (int): Input image width.
-        height (int): Input image height.
-        channels (int): Input image number of channels.
-        file_model (string, optional): Model file name. Defaults to model.h5.
-        load (bool, optional): Load from previous model.h5 if exists.
-            Defaults to False
-        gpus (int, optional): Number of GPUs. Defaults to 0.
-        summary (bool, optional): Whether to print a summary model.
-            Defaults to False.
 
-    Returns:
-        Model: The Keras neural network model.
-    """
-    if load and os.path.exists(file_model):
-        print('Model file exists, loading ' + file_model)
-        model = load_model('model.h5',
-                           custom_objects={'mean_iou': metric.mean_iou})
-    else:
-        inputs = Input((height, width, channels))
-        s = Lambda(lambda x: x / 255)(inputs)
+def convolution_block(x, filters, size, strides=(1, 1), padding='same',
+                      activation=True):
+    x = Conv2D(filters, size, strides=strides, padding=padding)(x)
 
-        c1 = Conv2D(8, (3, 3), activation='relu', padding='same')(s)
-        c1 = Conv2D(8, (3, 3), activation='relu', padding='same')(c1)
-        p1 = MaxPooling2D((2, 2))(c1)
+    if activation:
+        x = BatchActivate(x)
 
-        c2 = Conv2D(16, (3, 3), activation='relu', padding='same')(p1)
-        c2 = Conv2D(16, (3, 3), activation='relu', padding='same')(c2)
-        p2 = MaxPooling2D((2, 2))(c2)
+    return x
 
-        c3 = Conv2D(32, (3, 3), activation='relu', padding='same')(p2)
-        c3 = Conv2D(32, (3, 3), activation='relu', padding='same')(c3)
-        p3 = MaxPooling2D((2, 2))(c3)
 
-        c4 = Conv2D(64, (3, 3), activation='relu', padding='same')(p3)
-        c4 = Conv2D(64, (3, 3), activation='relu', padding='same')(c4)
-        p4 = MaxPooling2D(pool_size=(2, 2))(c4)
+def residual_block(blockInput, num_filters=16, batch_activate=False):
+    x = BatchActivate(blockInput)
+    x = convolution_block(x, num_filters, (3, 3))
+    x = convolution_block(x, num_filters, (3, 3), activation=False)
+    x = Add()([x, blockInput])
+    if batch_activate:
+        x = BatchActivate(x)
+    return x
 
-        c5 = Conv2D(128, (3, 3), activation='relu', padding='same')(p4)
-        c5 = Conv2D(128, (3, 3), activation='relu', padding='same')(c5)
 
-        u6 = Conv2DTranspose(64, (2, 2), strides=(2, 2), padding='same')(c5)
-        u6 = concatenate([u6, c4])
-        c6 = Conv2D(64, (3, 3), activation='relu', padding='same')(u6)
-        c6 = Conv2D(64, (3, 3), activation='relu', padding='same')(c6)
+def model(start_neurons=16, dropout_ratio=0.5):
+    inputs = Input((height, width, channels))
 
-        u7 = Conv2DTranspose(32, (2, 2), strides=(2, 2), padding='same')(c6)
-        u7 = concatenate([u7, c3])
-        c7 = Conv2D(32, (3, 3), activation='relu', padding='same')(u7)
-        c7 = Conv2D(32, (3, 3), activation='relu', padding='same')(c7)
+    conv1 = Conv2D(start_neurons * 1, (3, 3), activation=None,
+                   padding='same')(inputs)
+    conv1 = residual_block(conv1, start_neurons * 1)
+    conv1 = residual_block(conv1, start_neurons * 1, True)
+    pool1 = MaxPooling2D((2, 2))(conv1)
+    pool1 = Dropout(dropout_ratio / 2)(pool1)
 
-        u8 = Conv2DTranspose(16, (2, 2), strides=(2, 2), padding='same')(c7)
-        u8 = concatenate([u8, c2])
-        c8 = Conv2D(16, (3, 3), activation='relu', padding='same')(u8)
-        c8 = Conv2D(16, (3, 3), activation='relu', padding='same')(c8)
+    conv2 = Conv2D(start_neurons * 2, (3, 3), activation=None,
+                   padding='same')(pool1)
+    conv2 = residual_block(conv2, start_neurons * 2)
+    conv2 = residual_block(conv2, start_neurons * 2, True)
+    pool2 = MaxPooling2D((2, 2))(conv2)
+    pool2 = Dropout(dropout_ratio)(pool2)
 
-        u9 = Conv2DTranspose(8, (2, 2), strides=(2, 2), padding='same')(c8)
-        u9 = concatenate([u9, c1], axis=3)
-        c9 = Conv2D(8, (3, 3), activation='relu', padding='same')(u9)
-        c9 = Conv2D(8, (3, 3), activation='relu', padding='same')(c9)
+    conv3 = Conv2D(start_neurons * 4, (3, 3), activation=None,
+                   padding='same')(pool2)
+    conv3 = residual_block(conv3, start_neurons * 4)
+    conv3 = residual_block(conv3, start_neurons * 4, True)
+    pool3 = MaxPooling2D((2, 2))(conv3)
+    pool3 = Dropout(dropout_ratio)(pool3)
 
-        outputs = Conv2D(1, (1, 1), activation='sigmoid')(c9)
+    conv4 = Conv2D(start_neurons * 8, (3, 3), activation=None,
+                   padding='same')(pool3)
+    conv4 = residual_block(conv4, start_neurons * 8)
+    conv4 = residual_block(conv4, start_neurons * 8, True)
+    pool4 = MaxPooling2D((2, 2))(conv4)
+    pool4 = Dropout(dropout_ratio)(pool4)
 
-        model = Model(inputs=[inputs], outputs=[outputs])
+    convm = Conv2D(start_neurons * 16, (3, 3), activation=None,
+                   padding='same')(pool4)
+    convm = residual_block(convm, start_neurons * 16)
+    convm = residual_block(convm, start_neurons * 16, True)
 
-    gpus = int(os.environ['GPUS']) if 'GPUS' in os.environ else 0
+    deconv4 = Conv2DTranspose(start_neurons * 8, (3, 3), strides=(2, 2),
+                              padding='same')(convm)
+    uconv4 = concatenate([deconv4, conv4])
+    uconv4 = Conv2D(start_neurons * 8, (3, 3), activation=None,
+                    padding='same')(uconv4)
+    uconv4 = residual_block(uconv4, start_neurons * 8)
+    uconv4 = residual_block(uconv4, start_neurons * 8, True)
+    uconv4 = Dropout(dropout_ratio)(uconv4)
 
-    if gpus > 1:
-        model = multi_gpu_model(model, gpus=gpus)
+    deconv3 = Conv2DTranspose(start_neurons * 4, (3, 3), strides=(2, 2),
+                              padding='same')(uconv4)
+    uconv3 = concatenate([deconv3, conv3])
+    uconv3 = Dropout(dropout_ratio)(uconv3)
+    uconv3 = Conv2D(start_neurons * 4, (3, 3), activation=None,
+                    padding='same')(uconv3)
+    uconv3 = residual_block(uconv3, start_neurons * 4)
+    uconv3 = residual_block(uconv3, start_neurons * 4, True)
 
-    if summary:
-        model.summary()
+    deconv2 = Conv2DTranspose(start_neurons * 2, (3, 3), strides=(2, 2),
+                              padding='same')(uconv3)
+    uconv2 = concatenate([deconv2, conv2])
 
-    model.compile(optimizer='adam', loss='binary_crossentropy',
-                  metrics=[metric.mean_iou])
+    uconv2 = Conv2D(start_neurons * 2, (3, 3), activation=None,
+                    padding='same')(uconv2)
+    uconv2 = residual_block(uconv2, start_neurons * 2)
+    uconv2 = residual_block(uconv2, start_neurons * 2, True)
+
+    # 50 -> 101
+    deconv1 = Conv2DTranspose(start_neurons * 1, (3, 3), strides=(2, 2),
+                              padding='same')(uconv2)
+    uconv1 = concatenate([deconv1, conv1])
+    uconv1 = Dropout(dropout_ratio)(uconv1)
+
+    uconv1 = Conv2D(start_neurons * 1, (3, 3), activation=None,
+                    padding='same')(uconv1)
+    uconv1 = residual_block(uconv1, start_neurons * 1)
+    uconv1 = residual_block(uconv1, start_neurons * 1, True)
+
+    outputs = Conv2D(1, (1, 1), activation='sigmoid')(uconv1)
+
+    model = Model(inputs=[inputs], outputs=[outputs])
+
+    if debug:
+        with open(os.path.join(debug_dir, 'model.txt'), 'w') as f:
+            model.summary(print_fn=lambda x: f.write(x + '\n'))
 
     return model

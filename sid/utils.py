@@ -1,180 +1,167 @@
-from keras.preprocessing.image import ImageDataGenerator
+from PIL import Image
 from sklearn.model_selection import train_test_split
 from tqdm import tqdm
+import PIL
+import matplotlib.pyplot as plt
 import numpy as np
 import os
-import skimage.io
-import skimage.transform
+
+from .globals import (
+    width,
+    height,
+    channels,
+    debug,
+    debug_dir,
+)
+
+if not os.path.isdir(debug_dir):
+    os.makedirs(debug_dir)
 
 
-def resize(image, output_shape):
-    """Standard resize function so that all images are resized the same way.
-
-    Args:
-        image (ndarray): Input image.
-        output_shape (tuple or ndarray): Size of the generated output image.
-
-    Returns:
-        ndarray: Resized image.
-    """
-    return skimage.transform.resize(image, output_shape,
-                                    mode='constant', preserve_range=True,
-                                    anti_aliasing=False)
+def resize(image, size):
+    return np.array(Image.fromarray(image).resize((size[0], size[1])))
 
 
-def mask_class(mask):
-    """Return the class of a mask's coverage for stratification."""
-    for i in range(11):
-        if (np.sum(mask) / float(12.8 * 128)) <= i:
-            return i
+def preprocess_image(preprocess, image, mask, seed=None):
+    images = np.zeros((preprocess, height, width, channels), dtype=np.float32)
+    masks = np.zeros((preprocess, height, width, channels), dtype=np.bool)
+    image = image.resize((width, height))
+    mask = mask.resize((width, height))
 
+    for i in range(preprocess):
+        pimage = image
+        pmask = mask
 
-def get_data(path, width, height, channels, target=False, validation_split=0.0,
-             stratify=False, seed=None, progress=False):
-    """Return images data and, if target is True, masks target data.
+        if i == 1:
+            # Flip vertically
+            pimage = image.transpose(PIL.Image.FLIP_TOP_BOTTOM)
+            pmask = mask.transpose(PIL.Image.FLIP_TOP_BOTTOM)
+        elif i == 2:
+            # Flip horizontally
+            pimage = image.transpose(PIL.Image.FLIP_TOP_BOTTOM)
+            pmask = mask.transpose(PIL.Image.FLIP_TOP_BOTTOM)
 
-    Args:
-        path (string): Folder path containing images and masks.
-        width (int): Input image width.
-        height (int): Input image height.
-        channels (int): Input image number of channels.
-        target (bool, optional): Whether to return target data (masks).
-            Defaults to False.
-        validation_split (float, optional): Fraction of images reserved for
-            validation (strictly between 0 and 1).
-        stratify (bool, optional): Whether to stratify data by target coverage.
-            Defaults to False.
-        seed (int, optional): Provide random_state to train_test_split.
-            Defaults to False.
-        progress (bool, optional): Whether to log the progress.
-            Defaults to False.
+        masks[i] = np.array(pmask)[..., np.newaxis]
 
-    Returns:
-        ndarray: Numpy array of data (images).
-        ndarray: Numpy array of target data (masks). Returns only if `target`
-            is True
-        list(int): List of width and height of data (images).
-    """
-    ids = os.listdir(os.path.join(path, 'images'))
-    sizes = []
-    classes = [] if stratify else None
-    # The use of x and y is to match the Keras Model method's arguments.
-    x = np.zeros((len(ids), height, width, channels), dtype=np.uint8)
-    if target:
-        y = np.zeros((len(ids), height, width, channels), dtype=np.bool)
-    loop = tqdm(enumerate(ids), total=len(ids)) if progress else enumerate(ids)
-
-    for n, id in loop:
-        image = skimage.io.imread(os.path.join(path, 'images', id))
-        sizes.append([image.shape[0], image.shape[1]])
-        x[n] = resize(image, (width, height, channels))
-
-        if target:
-            mask = skimage.io.imread(os.path.join(path, 'masks', id))
-            y[n] = resize(mask, (width, height, channels))
-
-            if stratify:
-                classes.append(mask_class(y[n]))
-
-    if target:
-        if validation_split:
-            x_train, x_valid, y_train, y_valid = train_test_split(
-                x, y, test_size=validation_split, random_state=seed,
-                stratify=classes)
-
-            return x_train, x_valid, y_train, y_valid, sizes
-
-        return x, y, sizes
-
-    return x, sizes
-
-
-def rlenc(image):
-    """Return the run-length encoded string of an image."""
-    runs = []  # List of run lengths
-    r = 0  # The current run length
-    pos = 1  # Count starts from 1 per WK
-
-    for c in image.reshape(image.shape[0] * image.shape[1], order='F'):
-        if (c == 0):
-            if r != 0:
-                runs.append((pos, r))
-                pos += r
-                r = 0
-            pos += 1
+        if channels == 1:
+            images[i] = np.array(pimage.convert('L'))[..., np.newaxis]
         else:
-            r += 1
+            images[i] = np.array(pimage)
 
-    # If last run is unsaved (i.e. data ends with 1)
-    if r != 0:
-        runs.append((pos, r))
-        pos += r
-        r = 0
-
-    z = ''
-
-    for run in runs:
-        z += '{} {} '.format(run[0], run[1])
-
-    return z[:-1]
+    return zip(images / 255, masks)
 
 
-def zip(*iterables):
-    """Python 3 zip function for Python 2 as it needs to return an iterator."""
-    # zip('ABCD', 'xy') --> Ax By
-    sentinel = object()
-    iterators = [iter(it) for it in iterables]
+def get_train(preprocess=1, validation_split=0.1, seed=None):
+    print('Getting and resizing train images and masks...')
+    path = os.path.join('input', 'train')
+    path_images = os.path.join(path, 'images')
+    path_masks = os.path.join(path, 'masks')
+    ids = os.listdir(path_images)
+    images = np.zeros((preprocess * len(ids), height, width, channels),
+                      dtype=np.float32)
+    masks = np.zeros((preprocess * len(ids), height, width, channels),
+                     dtype=np.uint8)
+    coverages = []
+    classes = []
+    n = 0
 
-    while iterators:
-        result = []
+    for id in tqdm(ids, total=len(ids)) if debug else ids:
+        image = Image.open(os.path.join(path_images, id))
+        mask = Image.open(os.path.join(path_masks, id))
 
-        for it in iterators:
-            elem = next(it, sentinel)
+        for image, mask in preprocess_image(preprocess, image, mask, seed):
+            images[n] = image
+            masks[n] = mask
+            n += 1
 
-            if elem is sentinel:
-                return
+            # Get coverge class of mask.
+            coverages.append(10 * np.sum(mask) /
+                             float(width * height * channels))
 
-            result.append(elem)
+            for i in range(11):
+                if coverages[-1] <= i:
+                    classes.append(i)
+                    break
 
-        yield tuple(result)
+    x_train, x_valid, y_train, y_valid = train_test_split(
+        images, masks, test_size=validation_split, random_state=seed,
+        stratify=classes)
+
+    if debug:
+        # Plot histogram of coverages and classes.
+        plt.figure(figsize=(8, 6), dpi=300)
+        plt.subplot(2, 2, 1)
+        plt.hist(coverages, 10)
+        plt.xlabel('Coverage')
+
+        plt.subplot(2, 2, 2)
+        plt.hist(classes, 10)
+        plt.xlabel('Coverage class')
+
+        plt.subplot(2, 2, 3)
+        plt.scatter(coverages, classes)
+        plt.xlabel('Coverage')
+        plt.ylabel('Coverage class')
+
+        plt.tight_layout()
+        plt.savefig(os.path.join(debug_dir, 'salt-coverage.png'))
+
+        # Show some example images with mask overlay.
+        max_images = 60
+        grid_width = 15
+        grid_height = int(max_images / grid_width)
+        fig, axs = plt.subplots(grid_height, grid_width,
+                                figsize=(grid_width, grid_height))
+
+        for i in range(max_images):
+            image = images[i][:, :, 0]
+            mask = masks[i][:, :, 0]
+            coverage = coverages[i]
+            ax = axs[int(i / grid_width), i % grid_width]
+            ax.imshow(image, cmap='Greys')
+            ax.imshow(mask, alpha=0.2, cmap='Greens')
+            ax.text(width - 1, 1, round(coverage, 2), color='black',
+                    ha='right', va='top')
+            ax.text(1, 1, classes[i], color='black', ha='left', va='top')
+            ax.set_yticklabels([])
+            ax.set_xticklabels([])
+
+        plt.suptitle('Green: salt. Top-left: coverage class, top-right: salt '
+                     'coverage')
+        plt.savefig(os.path.join(debug_dir, 'images-masks.png'))
+
+    return x_train, x_valid, y_train, y_valid
 
 
-def preprocess_image(datagen_args, x_train, y_train, x_valid=None,
-                     y_valid=None, batch_size=8, seed=1):
-    """Preprocess image using Keras Image Preproessing.
+def get_test():
+    print('Getting and resizing test images...')
+    path = os.path.join('input', 'test')
+    path_images = os.path.join(path, 'images')
+    ids = os.listdir(path_images)
+    images = np.zeros((len(ids), height, width, channels), dtype=np.float32)
+    sizes = np.zeros((len(ids), 2), dtype=np.uint8)
+    n = 0
 
-    Args:
-        datagen_args (dict): Dictionary containing arguments for Keras
-            ImageDataGenerator
-        x_train (ndarray): Numpy array of data (images).
-        y_train (ndarray): Numpy array of target data (masks).
-        x_valid (ndarray, optional): Numpy array of validation data (images).
-            Defaults to None.
-        y_valid (ndarray, optional): Numpy array of validationtarget data
-            (masks). Defaults to None.
-        batch_size (int, optional): Batch size. Defaults to 8.
-        seed (int, optional): Random seed. Defaults to 1.
+    for id in tqdm(ids, total=len(ids)) if debug else ids:
+        image = Image.open(os.path.join(path_images, id)).convert('L')
+        sizes[n][0], sizes[n][1] = image.size
+        images[n] = np.array(image.resize((width, height)))[..., np.newaxis]
+        n += 1
 
-    Returns:
-        iterator: Keras flow iterator of preprocessed training data.
-        iterator: Keras flow iterator of preprocessed validation data. Returns
-            only if x_valid and y_valid is set.
-    """
-    datagen_x = ImageDataGenerator(**datagen_args)
-    datagen_y = ImageDataGenerator(**datagen_args)
-    gen_train = zip(
-        datagen_x.flow(x_train, batch_size=batch_size, seed=seed),
-        datagen_y.flow(y_train, batch_size=batch_size, seed=seed),
-    )
+    return ids, images, sizes
 
-    if x_valid is not None and y_valid is not None:
-        datagen_x = ImageDataGenerator(**datagen_args)
-        datagen_y = ImageDataGenerator(**datagen_args)
-        gen_valid = zip(
-            datagen_x.flow(x_valid, batch_size=batch_size, seed=seed),
-            datagen_y.flow(y_valid, batch_size=batch_size, seed=seed),
-        )
 
-        return gen_train, gen_valid
+def predict(model, x):
+    x_reflect = np.array([np.fliplr(v) for v in x])
+    preds = model.predict(x)
+    preds_refect = model.predict(x_reflect)
+    preds += np.array([np.fliplr(v) for v in preds_refect])
+    return preds / 2
 
-    return gen_train
+
+def rl_encode(image):
+    pixels = image.flatten(order='F')
+    pixels = np.concatenate([[0], pixels, [0]])
+    runs = np.where(pixels[1:] != pixels[:-1])[0] + 1
+    runs[1::2] -= runs[::2]
+    return ' '.join(str(x) for x in runs)

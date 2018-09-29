@@ -5,6 +5,7 @@ submission.csv
 /*.pbs
 /*.sbatch
 *.out
+/debug
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
