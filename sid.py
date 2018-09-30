@@ -25,9 +25,9 @@ batch_size = 32
 model = nn.model()
 model.compile(loss='binary_crossentropy', optimizer=Adam(0.01),
               metrics=[metric.mean_iou])
-model_checkpoint = ModelCheckpoint(file_model, monitor='val_mean_iou',
+model_checkpoint = ModelCheckpoint(file_model, monitor='mean_iou',
                                    verbose=1, save_best_only=True, mode='max')
-reduce_lr = ReduceLROnPlateau(monitor='val_mean_iou', factor=0.5, patience=5,
+reduce_lr = ReduceLROnPlateau(monitor='mean_iou', factor=0.5, patience=5,
                               verbose=1, mode='max', min_lr=0.0001)
 history = model.fit(x_train, y_train,
                     validation_data=[x_valid, y_valid],
@@ -44,7 +44,7 @@ model = Model(model.layers[0].input, model.layers[-1].input)
 # 0.5, as in mean_iou2.
 model.compile(loss=loss.lovasz_loss, optimizer=Adam(0.01),
               metrics=[metric.mean_iou2])
-early_stopping = EarlyStopping(monitor='val_mean_iou', patience=20, verbose=1,
+early_stopping = EarlyStopping(monitor='val_mean_iou2', patience=20, verbose=1,
                                mode='max')
 model_checkpoint = ModelCheckpoint(file_model, monitor='val_mean_iou2',
                                    verbose=1, save_best_only=True, mode='max')
