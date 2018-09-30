@@ -153,8 +153,8 @@ def get_test():
 
 def predict(model, x):
     x_reflect = np.array([np.fliplr(v) for v in x])
-    preds = model.predict(x)
-    preds_refect = model.predict(x_reflect)
+    preds = model.predict(x).reshape(-1, width, height)
+    preds_refect = model.predict(x_reflect).reshape(-1, width, height)
     preds += np.array([np.fliplr(v) for v in preds_refect])
     return preds / 2
 
