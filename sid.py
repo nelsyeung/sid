@@ -56,7 +56,7 @@ history = model.fit(x_train, y_train,
                     callbacks=[model_checkpoint, reduce_lr], verbose=2)
 
 model = load_model(file_model,
-                   custom_objects={'mean_iou': metric.mean_iou,
+                   custom_objects={'mean_iou2': metric.mean_iou2,
                                    'lovasz_loss': loss.lovasz_loss})
 preds_valid = utils.predict(model, x_valid)
 
