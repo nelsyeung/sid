@@ -77,7 +77,7 @@ ids, x_test, x_sizes = utils.get_test()
 preds_test = utils.predict(model, x_test)
 
 pred_dict = {idx: utils.rl_encode(
-    np.round(utils.resize(preds_test[i]) > threshold_best))
+    np.round(utils.resize(preds_test[i], x_sizes[i]) > threshold_best))
     for i, idx in enumerate(ids)}
 
 sub = pd.DataFrame.from_dict(pred_dict, orient='index')
