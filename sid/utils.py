@@ -19,7 +19,7 @@ if not os.path.isdir(debug_dir):
 
 
 def resize(image, size):
-    return np.array(Image.fromarray(image).resize((size[0], size[1])))
+    return np.array(Image.fromarray(image, 'F').resize((size[0], size[1])))
 
 
 def preprocess_image(preprocess, image, mask, seed=None):

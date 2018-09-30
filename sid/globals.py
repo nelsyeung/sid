@@ -1,8 +1,8 @@
 import os
 
 file_model = 'model.h5'
-width = 128
-height = 128
+width = 101
+height = 101
 channels = 1
 debug = True if 'DEBUG' in os.environ else False
 debug_dir = 'debug'
