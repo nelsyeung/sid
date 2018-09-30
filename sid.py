@@ -6,14 +6,16 @@ from keras.callbacks import (
 from keras.models import Model, load_model
 from keras.optimizers import Adam
 from tqdm import tqdm
-import pandas as pd
+import matplotlib.pyplot as plt
 import numpy as np
+import os
+import pandas as pd
 
 from sid import loss
 from sid import metric
 from sid import nn
 from sid import utils
-from sid.globals import file_model, debug
+from sid.globals import file_model, debug, debug_dir
 
 x_train, x_valid, y_train, y_valid = utils.get_train(
     preprocess=2, validation_split=0.2, seed=1)
@@ -33,6 +35,19 @@ history = model.fit(x_train, y_train,
                     validation_data=[x_valid, y_valid],
                     batch_size=batch_size, epochs=epochs,
                     callbacks=[model_checkpoint, reduce_lr], verbose=2)
+
+print('Plotting binary crossentropy convergence graph...')
+fig, (ax_loss, ax_score) = plt.subplots(1, 2, figsize=(15, 5))
+ax_loss.plot(history.epoch, history.history['loss'], label='Train loss')
+ax_loss.plot(history.epoch, history.history['val_loss'],
+             label='Validation loss')
+ax_loss.legend()
+ax_score.plot(history.epoch, history.history['mean_iou'],
+              label='Train score')
+ax_score.plot(history.epoch, history.history['val_mean_iou'],
+              label='Validation score')
+ax_score.legend()
+plt.savefig(os.path.join(debug_dir, 'convergence-crossentropy.png'))
 
 # Fit with Lovasz loss
 model = load_model(file_model,
@@ -55,12 +70,26 @@ history = model.fit(x_train, y_train,
                     batch_size=batch_size, epochs=epochs,
                     callbacks=[model_checkpoint, reduce_lr], verbose=2)
 
+print('Plotting Lovasz convergence graph...')
+fig, (ax_loss, ax_score) = plt.subplots(1, 2, figsize=(15, 5))
+ax_loss.plot(history.epoch, history.history['loss'], label='Train loss')
+ax_loss.plot(history.epoch, history.history['val_loss'],
+             label='Validation loss')
+ax_loss.legend()
+ax_score.plot(history.epoch, history.history['mean_iou2'],
+              label='Train score')
+ax_score.plot(history.epoch, history.history['val_mean_iou2'],
+              label='Validation score')
+ax_score.legend()
+plt.savefig(os.path.join(debug_dir, 'convergence-lovasz.png'))
+
+# Scoring for last model, choose threshold by validation data.
+print('Optimising threshold using validation data...')
 model = load_model(file_model,
                    custom_objects={'mean_iou2': metric.mean_iou2,
                                    'lovasz_loss': loss.lovasz_loss})
 preds_valid = utils.predict(model, x_valid)
 
-# Scoring for last model, choose threshold by validation data.
 thresholds_ori = np.linspace(0.3, 0.7, 31)
 # Reverse sigmoid function: Use code below because the  sigmoid activation was
 # removed.
@@ -68,13 +97,26 @@ thresholds = np.log(thresholds_ori / (1 - thresholds_ori))
 loop = tqdm(thresholds) if debug else thresholds
 ious = np.array([metric.iou_metric_batch(y_valid, preds_valid > threshold)
                  for threshold in loop])
-print(ious)
 threshold_best_index = np.argmax(ious)
 iou_best = ious[threshold_best_index]
 threshold_best = thresholds[threshold_best_index]
+print(ious)
+print(thresholds)
+print(threshold_best_index)
+
+plt.plot(thresholds, ious)
+plt.plot(threshold_best, iou_best, 'xr', label='Best threshold')
+plt.xlabel('Threshold')
+plt.ylabel('IoU')
+plt.title('Threshold vs IoU ({}, {})'.format(threshold_best, iou_best))
+plt.legend()
+plt.savefig(os.path.join(debug_dir, 'threshold-optimisation.png'))
 
 ids, x_test, x_sizes = utils.get_test()
 preds_test = utils.predict(model, x_test)
+
+print('Prediction masks min: {:.4f}'.format(np.amin(preds_test)))
+print('Prediction masks max: {:.4f}'.format(np.amax(preds_test)))
 
 pred_dict = {idx: utils.rl_encode(
     np.round(utils.resize(preds_test[i], x_sizes[i]) > threshold_best))

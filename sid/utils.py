@@ -106,14 +106,18 @@ def get_train(preprocess=1, validation_split=0.1, seed=None):
         plt.tight_layout()
         plt.savefig(os.path.join(debug_dir, 'salt-coverage.png'))
 
-        # Show some example images with mask overlay.
-        max_images = 60
+        # Show some example input images with mask overlay.
+        num_images = 60
         grid_width = 15
-        grid_height = int(max_images / grid_width)
+        grid_height = int(num_images / grid_width)
+        out_file = 'input-images.png'
+
+        print('Writing {:d} input images to {}'.format(
+            num_images, out_file))
         fig, axs = plt.subplots(grid_height, grid_width,
                                 figsize=(grid_width, grid_height))
 
-        for i in range(max_images):
+        for i in range(num_images):
             image = images[i][:, :, 0]
             mask = masks[i][:, :, 0]
             coverage = coverages[i]
@@ -128,7 +132,43 @@ def get_train(preprocess=1, validation_split=0.1, seed=None):
 
         plt.suptitle('Green: salt. Top-left: coverage class, top-right: salt '
                      'coverage')
-        plt.savefig(os.path.join(debug_dir, 'images-masks.png'))
+        plt.savefig(os.path.join(debug_dir, out_file))
+
+        out_file = 'x_train-images.png'
+        print('Writing {:d} x_train images to {}'.format(
+            num_images, out_file))
+        fig, axs = plt.subplots(grid_height, grid_width,
+                                figsize=(grid_width, grid_height))
+
+        for i in range(num_images):
+            image = x_train[i][:, :, 0]
+            mask = y_train[i][:, :, 0]
+            ax = axs[int(i / grid_width), i % grid_width]
+            ax.imshow(image, cmap='Greys')
+            ax.imshow(mask, alpha=0.2, cmap='Greens')
+            ax.set_yticklabels([])
+            ax.set_xticklabels([])
+
+        plt.suptitle('Green: salt')
+        plt.savefig(os.path.join(debug_dir, out_file))
+
+        out_file = 'x_valid-images.png'
+        print('Writing {:d} x_valid images to {}'.format(
+            num_images, out_file))
+        fig, axs = plt.subplots(grid_height, grid_width,
+                                figsize=(grid_width, grid_height))
+
+        for i in range(num_images):
+            image = x_valid[i][:, :, 0]
+            mask = y_valid[i][:, :, 0]
+            ax = axs[int(i / grid_width), i % grid_width]
+            ax.imshow(image, cmap='Greys')
+            ax.imshow(mask, alpha=0.2, cmap='Greens')
+            ax.set_yticklabels([])
+            ax.set_xticklabels([])
+
+        plt.suptitle('Green: salt')
+        plt.savefig(os.path.join(debug_dir, out_file))
 
     return x_train, x_valid, y_train, y_valid
 

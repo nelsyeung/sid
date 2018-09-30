@@ -120,10 +120,10 @@ def model(start_neurons=16, dropout_ratio=0.5):
     uconv1 = residual_block(uconv1, start_neurons * 1)
     uconv1 = residual_block(uconv1, start_neurons * 1, True)
 
-    outputs = Conv2D(1, (1, 1))(uconv1)
+    outputs = Conv2D(1, (1, 1), padding='same')(uconv1)
     outputs = Activation('sigmoid')(outputs)
 
-    model = Model(inputs=[inputs], outputs=[outputs])
+    model = Model(inputs, outputs)
 
     if debug:
         with open(os.path.join(debug_dir, 'model.txt'), 'w') as f:

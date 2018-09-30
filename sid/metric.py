@@ -10,13 +10,13 @@ def iou_vector(A, B):
         t, p = A[batch] > 0, B[batch] > 0
         intersection = np.logical_and(t, p)
         union = np.logical_or(t, p)
-        eps = 1e-10
-        iou = (np.sum(intersection > 0) + eps) / (np.sum(union > 0) + eps)
+        iou = (np.sum(intersection > 0) + 1e-10) / (np.sum(union > 0) + 1e-10)
         thresholds = np.arange(0.5, 1, 0.05)
         s = []
 
         for thresh in thresholds:
             s.append(iou > thresh)
+
         metric.append(np.mean(s))
 
     return np.mean(metric)
