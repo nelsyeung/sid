@@ -38,8 +38,8 @@ def preprocess_image(preprocess, image, mask, seed=None):
             pmask = mask.transpose(PIL.Image.FLIP_TOP_BOTTOM)
         elif i == 2:
             # Flip horizontally
-            pimage = image.transpose(PIL.Image.FLIP_TOP_BOTTOM)
-            pmask = mask.transpose(PIL.Image.FLIP_TOP_BOTTOM)
+            pimage = image.transpose(PIL.Image.FLIP_LEFT_RIGHT)
+            pmask = mask.transpose(PIL.Image.FLIP_LEFT_RIGHT)
 
         masks[i] = np.array(pmask)[..., np.newaxis]
 
@@ -189,7 +189,8 @@ def get_test():
     for id in tqdm(ids, total=len(ids)) if debug else ids:
         image = Image.open(os.path.join(path_images, id)).convert('L')
         sizes[n][0], sizes[n][1] = image.size
-        images[n] = np.array(image.resize((width, height)))[..., np.newaxis]
+        image = image.resize((width, height))
+        images[n] = np.array(image)[..., np.newaxis] / 255.0
         n += 1
 
     return ids, images, sizes
