@@ -1,6 +1,6 @@
 from PIL import Image
 from sklearn.model_selection import train_test_split
-from tqdm import tqdm
+from tqdm import tqdm, trange
 import PIL
 import matplotlib.pyplot as plt
 import numpy as np
@@ -10,6 +10,7 @@ from .globals import (
     width,
     height,
     channels,
+    progress,
     debug,
     debug_dir,
 )
@@ -51,37 +52,37 @@ def preprocess_image(preprocess, image, mask, seed=None):
     return zip(images / 255, masks)
 
 
-def get_train(preprocess=1, validation_split=0.1, seed=None):
+def get_train(validation_split=0.1, seed=None):
     print('Getting and resizing train images and masks...')
     path = os.path.join('input', 'train')
     path_images = os.path.join(path, 'images')
     path_masks = os.path.join(path, 'masks')
     ids = os.listdir(path_images)
-    images = np.zeros((preprocess * len(ids), height, width, channels),
-                      dtype=np.float32)
-    masks = np.zeros((preprocess * len(ids), height, width, channels),
-                     dtype=np.uint8)
+    images = np.zeros((len(ids), height, width, channels), dtype=np.float32)
+    masks = np.zeros((len(ids), height, width, channels), dtype=np.uint8)
     coverages = []
     classes = []
     n = 0
 
-    for id in tqdm(ids, total=len(ids)) if debug else ids:
-        image = Image.open(os.path.join(path_images, id))
-        mask = Image.open(os.path.join(path_masks, id))
+    for id in tqdm(ids, total=len(ids)) if progress else ids:
+        image = Image.open(os.path.join(path_images, id)).convert('L')
+        mask = Image.open(os.path.join(path_masks, id)).convert('L')
+        image = np.array(image.resize((width, height)),
+                         dtype=np.float32)[..., np.newaxis] / 255
+        mask = np.array(mask.resize((width, height)),
+                        dtype=np.uint8)[..., np.newaxis] / 255
+        images[n] = image
+        masks[n] = mask
+        n += 1
 
-        for image, mask in preprocess_image(preprocess, image, mask, seed):
-            images[n] = image
-            masks[n] = mask
-            n += 1
+        # Get coverge class of mask.
+        coverages.append(10 * np.sum(mask) /
+                         float(width * height * channels))
 
-            # Get coverge class of mask.
-            coverages.append(10 * np.sum(mask) /
-                             float(width * height * channels))
-
-            for i in range(11):
-                if coverages[-1] <= i:
-                    classes.append(i)
-                    break
+        for i in range(11):
+            if coverages[-1] <= i:
+                classes.append(i)
+                break
 
     x_train, x_valid, y_train, y_valid = train_test_split(
         images, masks, test_size=validation_split, random_state=seed,
@@ -175,6 +176,28 @@ def get_train(preprocess=1, validation_split=0.1, seed=None):
         plt.close()
 
     return x_train, x_valid, y_train, y_valid
+
+
+def preprocess_train(x, y, preprocess, seed=None):
+    print('Preprocessing images and masks...')
+    x = x.reshape(-1, height, width)
+    y = y.reshape(-1, height, width)
+    images = np.zeros((preprocess * len(x), height, width, channels),
+                      dtype=np.float32)
+    masks = np.zeros((preprocess * len(x), height, width, channels),
+                     dtype=np.uint8)
+    n = 0
+
+    for i in trange(len(x)) if progress else range(len(x)):
+        image = Image.fromarray((x[i] * 255), 'F')
+        mask = Image.fromarray(y[i] * 255)
+
+        for image, mask in preprocess_image(preprocess, image, mask):
+            images[n] = image
+            masks[n] = mask
+            n += 1
+
+    return images, masks
 
 
 def get_test():

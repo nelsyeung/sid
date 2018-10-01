@@ -15,14 +15,16 @@ from sid import loss
 from sid import metric
 from sid import nn
 from sid import utils
-from sid.globals import file_model, debug, debug_dir
+from sid.globals import file_model, progress, debug, debug_dir
 
-x_train, x_valid, y_train, y_valid = utils.get_train(
-    preprocess=2, validation_split=0.2, seed=1)
+seed = 1
+x_train, x_valid, y_train, y_valid = utils.get_train(0.2, seed)
+x_train, y_train = utils.preprocess_train(x_train, y_train, 2, seed)
 
 epochs = 50
 batch_size = 32
 
+verbose = 1 if progress else 2
 # Fit with binary crossentropy loss
 model = nn.model()
 model.compile(loss='binary_crossentropy', optimizer=Adam(0.01),
@@ -34,7 +36,7 @@ reduce_lr = ReduceLROnPlateau(monitor='mean_iou', factor=0.5, patience=5,
 history = model.fit(x_train, y_train,
                     validation_data=[x_valid, y_valid],
                     batch_size=batch_size, epochs=epochs,
-                    callbacks=[model_checkpoint, reduce_lr], verbose=2)
+                    callbacks=[model_checkpoint, reduce_lr], verbose=verbose)
 
 print('Plotting binary crossentropy convergence graph...')
 fig, (ax_loss, ax_score) = plt.subplots(1, 2, figsize=(15, 5))
@@ -69,7 +71,7 @@ reduce_lr = ReduceLROnPlateau(monitor='val_mean_iou2', factor=0.5, patience=5,
 history = model.fit(x_train, y_train,
                     validation_data=[x_valid, y_valid],
                     batch_size=batch_size, epochs=epochs,
-                    callbacks=[model_checkpoint, reduce_lr], verbose=2)
+                    callbacks=[model_checkpoint, reduce_lr], verbose=verbose)
 
 print('Plotting Lovasz convergence graph...')
 fig, (ax_loss, ax_score) = plt.subplots(1, 2, figsize=(15, 5))
