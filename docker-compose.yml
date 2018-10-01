@@ -2,5 +2,8 @@ version: '3'
 services:
   gpu:
     build: .
+    environment:
+      - PROGRESS=1
+      - DEBUG=1
     volumes:
       - .:/sid

@@ -6,6 +6,7 @@ submission.csv
 /*.sbatch
 *.out
 /debug
+/matplotlibrc
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
