@@ -95,7 +95,7 @@ model = load_model(file_model,
 preds_valid = utils.predict(model, x_valid)
 
 thresholds_ori = np.linspace(0.3, 0.7, 31)
-# Reverse sigmoid function: Use code below because the  sigmoid activation was
+# Reverse sigmoid function: Use code below because the sigmoid activation was
 # removed.
 thresholds = np.log(thresholds_ori / (1 - thresholds_ori))
 loop = tqdm(thresholds) if debug else thresholds

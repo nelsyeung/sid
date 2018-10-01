@@ -180,8 +180,6 @@ def get_train(validation_split=0.1, seed=None):
 
 def preprocess_train(x, y, preprocess, seed=None):
     print('Preprocessing images and masks...')
-    x = x.reshape(-1, height, width)
-    y = y.reshape(-1, height, width)
     images = np.zeros((preprocess * len(x), height, width, channels),
                       dtype=np.float32)
     masks = np.zeros((preprocess * len(x), height, width, channels),
@@ -189,8 +187,8 @@ def preprocess_train(x, y, preprocess, seed=None):
     n = 0
 
     for i in trange(len(x)) if progress else range(len(x)):
-        image = Image.fromarray((x[i] * 255), 'F')
-        mask = Image.fromarray(y[i] * 255)
+        image = Image.fromarray((x[i] * 255)[:, :, 0], 'F')
+        mask = Image.fromarray((y[i] * 255)[:, :, 0])
 
         for image, mask in preprocess_image(preprocess, image, mask):
             images[n] = image
