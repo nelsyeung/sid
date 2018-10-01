@@ -121,9 +121,9 @@ preds_test = utils.predict(model, x_test)
 print('Prediction masks min: {:.4f}'.format(np.amin(preds_test)))
 print('Prediction masks max: {:.4f}'.format(np.amax(preds_test)))
 
-pred_dict = {idx: utils.rl_encode(
+pred_dict = {id[:-4]: utils.rl_encode(
     np.round(utils.resize(preds_test[i], x_sizes[i]) > threshold_best))
-    for i, idx in enumerate(ids)}
+    for i, id in enumerate(ids)}
 
 sub = pd.DataFrame.from_dict(pred_dict, orient='index')
 sub.index.names = ['id']
