@@ -48,6 +48,7 @@ ax_score.plot(history.epoch, history.history['val_mean_iou'],
               label='Validation score')
 ax_score.legend()
 plt.savefig(os.path.join(debug_dir, 'convergence-crossentropy.png'))
+plt.close()
 
 # Fit with Lovasz loss
 model = load_model(file_model,
@@ -82,6 +83,7 @@ ax_score.plot(history.epoch, history.history['val_mean_iou2'],
               label='Validation score')
 ax_score.legend()
 plt.savefig(os.path.join(debug_dir, 'convergence-lovasz.png'))
+plt.close()
 
 # Scoring for last model, choose threshold by validation data.
 print('Optimising threshold using validation data...')
@@ -102,7 +104,7 @@ iou_best = ious[threshold_best_index]
 threshold_best = thresholds[threshold_best_index]
 print(ious)
 print(thresholds)
-print(threshold_best_index)
+print(threshold_best)
 
 plt.plot(thresholds, ious)
 plt.plot(threshold_best, iou_best, 'xr', label='Best threshold')
@@ -111,6 +113,7 @@ plt.ylabel('IoU')
 plt.title('Threshold vs IoU ({}, {})'.format(threshold_best, iou_best))
 plt.legend()
 plt.savefig(os.path.join(debug_dir, 'threshold-optimisation.png'))
+plt.close()
 
 ids, x_test, x_sizes = utils.get_test()
 preds_test = utils.predict(model, x_test)

@@ -105,6 +105,7 @@ def get_train(preprocess=1, validation_split=0.1, seed=None):
 
         plt.tight_layout()
         plt.savefig(os.path.join(debug_dir, 'salt-coverage.png'))
+        plt.close()
 
         # Show some example input images with mask overlay.
         num_images = 60
@@ -133,6 +134,7 @@ def get_train(preprocess=1, validation_split=0.1, seed=None):
         plt.suptitle('Green: salt. Top-left: coverage class, top-right: salt '
                      'coverage')
         plt.savefig(os.path.join(debug_dir, out_file))
+        plt.close()
 
         out_file = 'x_train-images.png'
         print('Writing {:d} x_train images to {}'.format(
@@ -151,6 +153,7 @@ def get_train(preprocess=1, validation_split=0.1, seed=None):
 
         plt.suptitle('Green: salt')
         plt.savefig(os.path.join(debug_dir, out_file))
+        plt.close()
 
         out_file = 'x_valid-images.png'
         print('Writing {:d} x_valid images to {}'.format(
@@ -169,6 +172,7 @@ def get_train(preprocess=1, validation_split=0.1, seed=None):
 
         plt.suptitle('Green: salt')
         plt.savefig(os.path.join(debug_dir, out_file))
+        plt.close()
 
     return x_train, x_valid, y_train, y_valid
 
