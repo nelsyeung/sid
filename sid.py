@@ -15,9 +15,8 @@ from sid import loss
 from sid import metric
 from sid import nn
 from sid import utils
-from sid.globals import file_model, progress, debug, debug_dir
+from sid.globals import file_model, progress, debug, debug_dir, seed
 
-seed = 1
 x_train, x_valid, y_train, y_valid = utils.get_train(0.2, seed)
 x_train, y_train = utils.preprocess_train(x_train, y_train, 2, seed)
 
