@@ -1,9 +1,9 @@
 import os
 
 file_model = 'model.h5'
-width = 101
-height = 101
-channels = 1
+width = 224
+height = 224
+channels = 3
 progress = True if 'PROGRESS' in os.environ else False
 debug = True if 'DEBUG' in os.environ else False
 debug_dir = 'debug'
