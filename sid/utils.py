@@ -30,7 +30,7 @@ def get_train(validation_split=0.1, seed=None):
     path_masks = os.path.join(path, 'masks')
     ids = os.listdir(path_images)
     images = np.zeros((len(ids), height, width, channels), dtype=np.float32)
-    masks = np.zeros((len(ids), height, width, channels), dtype=np.uint8)
+    masks = np.zeros((len(ids), height, width, 1), dtype=np.uint8)
     coverages = []
     classes = []
     n = 0
@@ -151,7 +151,7 @@ def get_train(validation_split=0.1, seed=None):
 
 def preprocess_image(image, mask, preprocess, seed=None):
     images = np.zeros((preprocess, height, width, channels), dtype=np.float32)
-    masks = np.zeros((preprocess, height, width, channels), dtype=np.bool)
+    masks = np.zeros((preprocess, height, width, 1), dtype=np.bool)
 
     for i in range(preprocess):
         pimage = image
@@ -182,7 +182,7 @@ def preprocess_train(x, y, preprocess, seed=None):
     print('Preprocessing images and masks...')
     images = np.zeros((preprocess * len(x), height, width, channels),
                       dtype=np.float32)
-    masks = np.zeros((preprocess * len(x), height, width, channels),
+    masks = np.zeros((preprocess * len(x), height, width, 1),
                      dtype=np.uint8)
     n = 0
 
