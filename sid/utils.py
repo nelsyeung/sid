@@ -171,7 +171,9 @@ def preprocess_image(image, mask, preprocess, seed=None):
         if channels == 1:
             images[i] = np.array(pimage.convert('L'))[..., np.newaxis]
         else:
-            images[i] = np.array(pimage)
+            image_rgb = Image.new('RGB', pimage.size)
+            image_rgb.paste(pimage)
+            images[i] = np.array(image_rgb)
 
     return zip(images / 255, masks)
 
