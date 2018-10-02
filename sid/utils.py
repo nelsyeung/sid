@@ -23,35 +23,6 @@ def resize(image, size):
     return np.array(Image.fromarray(image, 'F').resize((size[0], size[1])))
 
 
-def preprocess_image(preprocess, image, mask, seed=None):
-    images = np.zeros((preprocess, height, width, channels), dtype=np.float32)
-    masks = np.zeros((preprocess, height, width, channels), dtype=np.bool)
-    image = image.resize((width, height))
-    mask = mask.resize((width, height))
-
-    for i in range(preprocess):
-        pimage = image
-        pmask = mask
-
-        if i == 1:
-            # Flip vertically
-            pimage = image.transpose(PIL.Image.FLIP_TOP_BOTTOM)
-            pmask = mask.transpose(PIL.Image.FLIP_TOP_BOTTOM)
-        elif i == 2:
-            # Flip horizontally
-            pimage = image.transpose(PIL.Image.FLIP_LEFT_RIGHT)
-            pmask = mask.transpose(PIL.Image.FLIP_LEFT_RIGHT)
-
-        masks[i] = np.array(pmask)[..., np.newaxis]
-
-        if channels == 1:
-            images[i] = np.array(pimage.convert('L'))[..., np.newaxis]
-        else:
-            images[i] = np.array(pimage)
-
-    return zip(images / 255, masks)
-
-
 def get_train(validation_split=0.1, seed=None):
     print('Getting and resizing train images and masks...')
     path = os.path.join('input', 'train')
@@ -178,6 +149,33 @@ def get_train(validation_split=0.1, seed=None):
     return x_train, x_valid, y_train, y_valid
 
 
+def preprocess_image(image, mask, preprocess, seed=None):
+    images = np.zeros((preprocess, height, width, channels), dtype=np.float32)
+    masks = np.zeros((preprocess, height, width, channels), dtype=np.bool)
+
+    for i in range(preprocess):
+        pimage = image
+        pmask = mask
+
+        if i == 1:
+            # Flip vertically
+            pimage = image.transpose(PIL.Image.FLIP_TOP_BOTTOM)
+            pmask = mask.transpose(PIL.Image.FLIP_TOP_BOTTOM)
+        elif i == 2:
+            # Flip horizontally
+            pimage = image.transpose(PIL.Image.FLIP_LEFT_RIGHT)
+            pmask = mask.transpose(PIL.Image.FLIP_LEFT_RIGHT)
+
+        masks[i] = np.array(pmask)[..., np.newaxis]
+
+        if channels == 1:
+            images[i] = np.array(pimage.convert('L'))[..., np.newaxis]
+        else:
+            images[i] = np.array(pimage)
+
+    return zip(images / 255, masks)
+
+
 def preprocess_train(x, y, preprocess, seed=None):
     print('Preprocessing images and masks...')
     images = np.zeros((preprocess * len(x), height, width, channels),
@@ -190,10 +188,33 @@ def preprocess_train(x, y, preprocess, seed=None):
         image = Image.fromarray((x[i] * 255)[:, :, 0], 'F')
         mask = Image.fromarray((y[i] * 255)[:, :, 0])
 
-        for image, mask in preprocess_image(preprocess, image, mask):
+        for image, mask in preprocess_image(image, mask, preprocess, seed):
             images[n] = image
             masks[n] = mask
             n += 1
+
+    if debug:
+        num_images = 60
+        grid_width = 15
+        grid_height = int(num_images / grid_width)
+        out_file = 'preprocessed-images.png'
+        print('Writing {:d} x_train images to {}'.format(
+            num_images, out_file))
+        fig, axs = plt.subplots(grid_height, grid_width,
+                                figsize=(grid_width, grid_height))
+
+        for i in range(num_images):
+            image = images[i][:, :, 0]
+            mask = masks[i][:, :, 0]
+            ax = axs[int(i / grid_width), i % grid_width]
+            ax.imshow(image, cmap='Greys')
+            ax.imshow(mask, alpha=0.2, cmap='Greens')
+            ax.set_yticklabels([])
+            ax.set_xticklabels([])
+
+        plt.suptitle('Green: salt')
+        plt.savefig(os.path.join(debug_dir, out_file))
+        plt.close()
 
     return images, masks
 

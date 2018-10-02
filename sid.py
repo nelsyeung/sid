@@ -15,10 +15,10 @@ from sid import loss
 from sid import metric
 from sid import nn
 from sid import utils
-from sid.globals import file_model, progress, debug, debug_dir, seed
+from sid.globals import file_model, progress, debug_dir, seed
 
 x_train, x_valid, y_train, y_valid = utils.get_train(0.2, seed)
-x_train, y_train = utils.preprocess_train(x_train, y_train, 2, seed)
+x_train, y_train = utils.preprocess_train(x_train, y_train, 3, seed)
 
 epochs = 50
 batch_size = 32
@@ -61,7 +61,7 @@ model = Model(model.layers[0].input, model.layers[-1].input)
 # 0.5, as in mean_iou2.
 model.compile(loss=loss.lovasz_loss, optimizer=Adam(0.01),
               metrics=[metric.mean_iou2])
-early_stopping = EarlyStopping(monitor='val_mean_iou2', patience=20, verbose=1,
+early_stopping = EarlyStopping(monitor='val_mean_iou2', patience=10, verbose=1,
                                mode='max')
 model_checkpoint = ModelCheckpoint(file_model, monitor='val_mean_iou2',
                                    verbose=1, save_best_only=True, mode='max')
@@ -97,7 +97,7 @@ thresholds_ori = np.linspace(0.3, 0.7, 31)
 # Reverse sigmoid function: Use code below because the sigmoid activation was
 # removed.
 thresholds = np.log(thresholds_ori / (1 - thresholds_ori))
-loop = tqdm(thresholds) if debug else thresholds
+loop = tqdm(thresholds) if progress else thresholds
 ious = np.array([metric.iou_metric_batch(y_valid, preds_valid > threshold)
                  for threshold in loop])
 threshold_best_index = np.argmax(ious)
