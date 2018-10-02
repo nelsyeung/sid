@@ -149,7 +149,7 @@ def get_train(validation_split=0.1, seed=None):
     return x_train, x_valid, y_train, y_valid
 
 
-def preprocess_image(image, mask, preprocess, seed=None):
+def preprocess_image(image, mask, preprocess):
     images = np.zeros((preprocess, height, width, channels), dtype=np.float32)
     masks = np.zeros((preprocess, height, width, channels), dtype=np.bool)
 
@@ -157,14 +157,34 @@ def preprocess_image(image, mask, preprocess, seed=None):
         pimage = image
         pmask = mask
 
-        if i == 1:
-            # Flip vertically
-            pimage = image.transpose(PIL.Image.FLIP_TOP_BOTTOM)
-            pmask = mask.transpose(PIL.Image.FLIP_TOP_BOTTOM)
-        elif i == 2:
-            # Flip horizontally
-            pimage = image.transpose(PIL.Image.FLIP_LEFT_RIGHT)
-            pmask = mask.transpose(PIL.Image.FLIP_LEFT_RIGHT)
+        if i > 0:
+            flipv = np.random.randint(2)
+            fliph = np.random.randint(2)
+
+            if flipv:
+                # Flip vertically
+                pimage = pimage.transpose(PIL.Image.FLIP_TOP_BOTTOM)
+                pmask = pmask.transpose(PIL.Image.FLIP_TOP_BOTTOM)
+
+            if fliph:
+                # Flip horizontally
+                pimage = pimage.transpose(PIL.Image.FLIP_LEFT_RIGHT)
+                pmask = pmask.transpose(PIL.Image.FLIP_LEFT_RIGHT)
+
+            # Zoom
+            zoom = np.random.uniform(0.8, 1.3)
+            w = int(width * zoom)
+            h = int(height * zoom)
+            r = width - ((w/2 + width/2) - (w/2 - width/2))
+            crop = (w/2 - width/2, h/2 - height/2,
+                    w/2 + width/2 + r, h/2 + height/2 + r)
+            pimage = pimage.resize((w, h)).crop(crop)
+            pmask = pmask.resize((w, h)).crop(crop)
+
+            # Rotate
+            angle = np.random.randint(-180, 180)
+            pimage = pimage.rotate(angle)
+            pmask = pmask.rotate(angle)
 
         masks[i] = np.array(pmask)[..., np.newaxis]
 
@@ -183,12 +203,13 @@ def preprocess_train(x, y, preprocess, seed=None):
     masks = np.zeros((preprocess * len(x), height, width, channels),
                      dtype=np.uint8)
     n = 0
+    np.random.seed(seed)
 
     for i in trange(len(x)) if progress else range(len(x)):
         image = Image.fromarray((x[i] * 255)[:, :, 0], 'F')
         mask = Image.fromarray((y[i] * 255)[:, :, 0])
 
-        for image, mask in preprocess_image(image, mask, preprocess, seed):
+        for image, mask in preprocess_image(image, mask, preprocess):
             images[n] = image
             masks[n] = mask
             n += 1
