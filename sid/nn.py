@@ -35,7 +35,6 @@ def upsample_block(input_tensor, filters, kernel_size=3):
     shortcut = BatchNormalization(axis=bn_axis)(shortcut)
 
     x = add([x, shortcut])
-    x = Activation('relu')(x)
     return x
 
 
@@ -57,6 +56,7 @@ def identity_block(input_tensor, filters, kernel_size=3):
 def agent_add(encoder, decoder, filters):
     x = Conv2D(filters, 1, activation='relu', padding='same')(encoder)
     x = add([x, decoder])
+    x = Activation('relu')(x)
     return x
 
 
@@ -74,23 +74,23 @@ def model(start_neurons=16, dropout_ratio=0.5):
     x = identity_block(x, 512)
     x = identity_block(x, 512)
     x = upsample_block(x, [512, 256])
-    x = agent_add(model.get_layer('activation_40').output, x, 256)
+    x = agent_add(model.get_layer('activation_40').input, x, 256)
 
     x = identity_block(x, 256)
     x = identity_block(x, 256)
     x = identity_block(x, 256)
     x = upsample_block(x, [256, 128])
-    x = agent_add(model.get_layer('activation_22').output, x, 128)
+    x = agent_add(model.get_layer('activation_22').input, x, 128)
 
     x = identity_block(x, 128)
     x = identity_block(x, 128)
     x = upsample_block(x, [128, 64])
-    x = agent_add(model.get_layer('activation_10').output, x, 64)
+    x = agent_add(model.get_layer('activation_10').input, x, 64)
 
     x = identity_block(x, 64)
     x = identity_block(x, 64)
     x = upsample_block(x, [64, 64])
-    x = agent_add(model.get_layer('activation_1').output, x, 64)
+    x = agent_add(model.get_layer('activation_1').input, x, 64)
 
     x = identity_block(x, 64)
     x = identity_block(x, 64)
