@@ -38,9 +38,9 @@ def get_train(validation_split=0.1, seed=None):
     for id in tqdm(ids, total=len(ids)) if progress else ids:
         image = Image.open(os.path.join(path_images, id)).convert('L')
         mask = Image.open(os.path.join(path_masks, id)).convert('L')
-        image = np.array(image.resize((width, height)),
+        image = np.array(image.resize((width, height), Image.BICUBIC),
                          dtype=np.float32)[..., np.newaxis] / 255
-        mask = np.array(mask.resize((width, height)),
+        mask = np.array(mask.resize((width, height), Image.BICUBIC),
                         dtype=np.uint8)[..., np.newaxis] / 255
         images[n] = image
         masks[n] = mask

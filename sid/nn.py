@@ -89,8 +89,8 @@ def model(start_neurons=64, dropout_ratio=0.5):
     x = identity_block(uconv2, start_neurons * 2)
     x = identity_block(x, start_neurons * 2)
 
-    deconv1 = Conv2DTranspose(start_neurons * 1, (3, 3), strides=(2, 2),
-                              padding='same')(x)
+    deconv1 = Conv2DTranspose(start_neurons * 1, (2, 2), strides=(2, 2),
+                              padding='valid')(x)
     uconv1 = concatenate([deconv1, model.get_layer('activation_1').output])
     uconv1 = Conv2D(start_neurons * 1, (3, 3), activation=None,
                     padding='same')(uconv1)
