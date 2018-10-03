@@ -5,6 +5,7 @@ from keras.layers import (
     Conv2DTranspose,
     UpSampling2D,
     add,
+    concatenate,
 )
 from keras.applications import ResNet50
 from keras.models import Model
@@ -60,44 +61,47 @@ def agent_add(encoder, decoder, filters):
     return x
 
 
-def model(start_neurons=16, dropout_ratio=0.5):
+def model(start_neurons=64, dropout_ratio=0.5):
     model = ResNet50(False, input_shape=(width, height, channels))
 
     for layer in model.layers:
         layer.trainable = False
 
-    x = Conv2D(512, 1, activation='relu', padding='same')(model.output)
+    deconv4 = Conv2DTranspose(start_neurons * 8, (3, 3), strides=(2, 2),
+                              padding='same')(model.output)
+    uconv4 = concatenate([deconv4, model.get_layer('activation_40').output])
+    uconv4 = Conv2D(start_neurons * 8, (3, 3), activation=None,
+                    padding='same')(uconv4)
 
-    x = identity_block(x, 512)
-    x = identity_block(x, 512)
-    x = identity_block(x, 512)
-    x = identity_block(x, 512)
-    x = identity_block(x, 512)
-    x = upsample_block(x, [512, 256])
-    x = agent_add(model.get_layer('activation_40').input, x, 256)
+    x = identity_block(uconv4, start_neurons * 8)
+    x = identity_block(x, start_neurons * 8)
 
-    x = identity_block(x, 256)
-    x = identity_block(x, 256)
-    x = identity_block(x, 256)
-    x = upsample_block(x, [256, 128])
-    x = agent_add(model.get_layer('activation_22').input, x, 128)
+    deconv3 = Conv2DTranspose(start_neurons * 4, (3, 3), strides=(2, 2),
+                              padding='same')(x)
+    uconv3 = concatenate([deconv3, model.get_layer('activation_22').output])
+    uconv3 = Conv2D(start_neurons * 4, (3, 3), activation=None,
+                    padding='same')(uconv3)
+    x = identity_block(uconv3, start_neurons * 4)
+    x = identity_block(x, start_neurons * 4)
 
-    x = identity_block(x, 128)
-    x = identity_block(x, 128)
-    x = upsample_block(x, [128, 64])
-    x = agent_add(model.get_layer('activation_10').input, x, 64)
+    deconv2 = Conv2DTranspose(start_neurons * 2, (3, 3), strides=(2, 2),
+                              padding='same')(x)
+    uconv2 = concatenate([deconv2, model.get_layer('activation_10').output])
+    uconv2 = Conv2D(start_neurons * 2, (3, 3), activation=None,
+                    padding='same')(uconv2)
+    x = identity_block(uconv2, start_neurons * 2)
+    x = identity_block(x, start_neurons * 2)
 
-    x = identity_block(x, 64)
-    x = identity_block(x, 64)
-    x = upsample_block(x, [64, 64])
-    x = agent_add(model.get_layer('activation_1').input, x, 64)
+    deconv1 = Conv2DTranspose(start_neurons * 1, (3, 3), strides=(2, 2),
+                              padding='same')(x)
+    uconv1 = concatenate([deconv1, model.get_layer('activation_1').output])
+    uconv1 = Conv2D(start_neurons * 1, (3, 3), activation=None,
+                    padding='same')(uconv1)
+    x = identity_block(uconv1, start_neurons * 1)
+    x = identity_block(x, start_neurons * 1)
 
-    x = identity_block(x, 64)
-    x = identity_block(x, 64)
-    x = identity_block(x, 64)
-
-    x = Conv2DTranspose(1, 1, strides=2, padding='same')(x)
-    outputs = Activation('sigmoid')(x)
+    outputs = Conv2D(1, (1, 1), padding='same')(x)
+    outputs = Activation('sigmoid')(outputs)
 
     model = Model(model.input, outputs)
 
