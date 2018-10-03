@@ -64,9 +64,6 @@ def agent_add(encoder, decoder, filters):
 def model(start_neurons=64, dropout_ratio=0.5):
     model = ResNet50(False, input_shape=(width, height, channels))
 
-    for layer in model.layers:
-        layer.trainable = False
-
     deconv4 = Conv2DTranspose(start_neurons * 8, (3, 3), strides=(2, 2),
                               padding='same')(model.output)
     uconv4 = concatenate([deconv4, model.get_layer('activation_40').output])
