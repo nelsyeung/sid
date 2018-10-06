@@ -172,7 +172,7 @@ def preprocess_image(image, mask, preprocess):
                 pmask = pmask.transpose(PIL.Image.FLIP_LEFT_RIGHT)
 
             # Zoom
-            zoom = np.random.uniform(0.8, 1.3)
+            zoom = np.random.uniform(0.9, 1.5)
             w = int(width * zoom)
             h = int(height * zoom)
             r = width - ((w/2 + width/2) - (w/2 - width/2))
@@ -182,7 +182,7 @@ def preprocess_image(image, mask, preprocess):
             pmask = pmask.resize((w, h)).crop(crop)
 
             # Rotate
-            angle = np.random.randint(-180, 180)
+            angle = np.random.randint(-45, 45)
             pimage = pimage.rotate(angle)
             pmask = pmask.rotate(angle)
 

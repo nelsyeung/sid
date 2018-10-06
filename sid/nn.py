@@ -1,12 +1,13 @@
 from keras.layers import (
     Activation,
-    Add,
     BatchNormalization,
     Conv2D,
     Conv2DTranspose,
     Dropout,
     Input,
     MaxPooling2D,
+    ZeroPadding2D,
+    add,
     concatenate,
 )
 from keras.models import Model
@@ -21,109 +22,159 @@ from .globals import (
 )
 
 
-def BatchActivate(x):
-    x = BatchNormalization()(x)
+def upsample_block(input_tensor, filters):
+    x = Conv2D(filters[0], (3, 3), padding='same',
+               kernel_initializer='he_normal')(input_tensor)
+    x = BatchNormalization(axis=3)(x)
+    x = Activation('relu')(x)
+
+    x = Conv2DTranspose(filters[1], (3, 3), strides=(2, 2), padding='same')(x)
+    x = BatchNormalization(axis=3)(x)
+
+    shortcut = Conv2DTranspose(filters[1], (2, 2), strides=(2, 2),
+                               kernel_initializer='he_normal')(input_tensor)
+    shortcut = BatchNormalization(axis=3)(shortcut)
+
+    x = add([x, shortcut])
     x = Activation('relu')(x)
     return x
 
 
-def convolution_block(x, filters, size, strides=(1, 1), padding='same',
-                      activation=True):
-    x = Conv2D(filters, size, strides=strides, padding=padding)(x)
+def downsample_block(input_tensor, kernel_size, filters, stage, block,
+                     strides=(2, 2)):
+    conv_name_base = 'res' + str(stage) + block + '_branch'
+    bn_name_base = 'bn' + str(stage) + block + '_branch'
 
-    if activation:
-        x = BatchActivate(x)
+    x = Conv2D(filters[0], (1, 1), strides=strides,
+               kernel_initializer='he_normal',
+               name=conv_name_base + '2a')(input_tensor)
+    x = BatchNormalization(axis=3, name=bn_name_base + '2a')(x)
+    x = Activation('relu')(x)
 
+    x = Conv2D(filters[1], kernel_size, padding='same',
+               kernel_initializer='he_normal',
+               name=conv_name_base + '2b')(x)
+    x = BatchNormalization(axis=3, name=bn_name_base + '2b')(x)
+    x = Activation('relu')(x)
+
+    x = Conv2D(filters[2], (1, 1),
+               kernel_initializer='he_normal',
+               name=conv_name_base + '2c')(x)
+    x = BatchNormalization(axis=3, name=bn_name_base + '2c')(x)
+
+    shortcut = Conv2D(filters[2], (1, 1), strides=strides,
+                      kernel_initializer='he_normal',
+                      name=conv_name_base + '1')(input_tensor)
+    shortcut = BatchNormalization(
+        axis=3, name=bn_name_base + '1')(shortcut)
+
+    x = add([x, shortcut])
+    x = Activation('relu')(x)
     return x
 
 
-def residual_block(blockInput, num_filters=16, batch_activate=False):
-    x = BatchActivate(blockInput)
-    x = convolution_block(x, num_filters, (3, 3))
-    x = convolution_block(x, num_filters, (3, 3), activation=False)
-    x = Add()([x, blockInput])
-    if batch_activate:
-        x = BatchActivate(x)
+def residual_block(input_tensor, kernel_size, filters, stage, block):
+    conv_name_base = 'res' + str(stage) + block + '_branch'
+    bn_name_base = 'bn' + str(stage) + block + '_branch'
+
+    x = Conv2D(filters[0], (1, 1),
+               kernel_initializer='he_normal',
+               name=conv_name_base + '2a')(input_tensor)
+    x = BatchNormalization(axis=3, name=bn_name_base + '2a')(x)
+    x = Activation('relu')(x)
+
+    x = Conv2D(filters[1], kernel_size,
+               padding='same',
+               kernel_initializer='he_normal',
+               name=conv_name_base + '2b')(x)
+    x = BatchNormalization(axis=3, name=bn_name_base + '2b')(x)
+    x = Activation('relu')(x)
+
+    x = Conv2D(filters[2], (1, 1),
+               kernel_initializer='he_normal',
+               name=conv_name_base + '2c')(x)
+    x = BatchNormalization(axis=3, name=bn_name_base + '2c')(x)
+
+    x = add([x, input_tensor])
+    x = Activation('relu')(x)
     return x
 
 
 def model(start_neurons=16, dropout_ratio=0.5):
     inputs = Input((height, width, channels))
 
-    conv1 = Conv2D(start_neurons * 1, (3, 3), activation=None,
-                   padding='same')(inputs)
-    conv1 = residual_block(conv1, start_neurons * 1)
-    conv1 = residual_block(conv1, start_neurons * 1, True)
-    pool1 = MaxPooling2D((2, 2))(conv1)
-    pool1 = Dropout(dropout_ratio / 2)(pool1)
+    # 128 -> 64
+    c1 = ZeroPadding2D(padding=(3, 3), name='conv1_pad')(inputs)
+    c1 = Conv2D(64, (7, 7), strides=(2, 2), padding='valid',
+                kernel_initializer='he_normal', name='conv1')(c1)
+    c1 = BatchNormalization(axis=3, name='bn_conv1')(c1)
+    c1 = Activation('relu')(c1)
 
-    conv2 = Conv2D(start_neurons * 2, (3, 3), activation=None,
-                   padding='same')(pool1)
-    conv2 = residual_block(conv2, start_neurons * 2)
-    conv2 = residual_block(conv2, start_neurons * 2, True)
-    pool2 = MaxPooling2D((2, 2))(conv2)
-    pool2 = Dropout(dropout_ratio)(pool2)
+    # 64 -> 32
+    p1 = ZeroPadding2D(padding=(1, 1), name='pool1_pad')(c1)
+    p1 = MaxPooling2D((3, 3), strides=(2, 2))(p1)
+    l1 = downsample_block(p1, 3, [64, 64, 256], stage=2, block='a',
+                          strides=(1, 1))
+    l1 = residual_block(l1, 3, [64, 64, 256], stage=2, block='b')
+    l1 = residual_block(l1, 3, [64, 64, 256], stage=2, block='c')
 
-    conv3 = Conv2D(start_neurons * 4, (3, 3), activation=None,
-                   padding='same')(pool2)
-    conv3 = residual_block(conv3, start_neurons * 4)
-    conv3 = residual_block(conv3, start_neurons * 4, True)
-    pool3 = MaxPooling2D((2, 2))(conv3)
-    pool3 = Dropout(dropout_ratio)(pool3)
+    # 32 -> 16
+    c2 = downsample_block(l1, 3, [128, 128, 512], stage=3, block='a')
+    c2 = residual_block(c2, 3, [128, 128, 512], stage=3, block='b')
+    c2 = residual_block(c2, 3, [128, 128, 512], stage=3, block='c')
+    c2 = residual_block(c2, 3, [128, 128, 512], stage=3, block='d')
 
-    conv4 = Conv2D(start_neurons * 8, (3, 3), activation=None,
-                   padding='same')(pool3)
-    conv4 = residual_block(conv4, start_neurons * 8)
-    conv4 = residual_block(conv4, start_neurons * 8, True)
-    pool4 = MaxPooling2D((2, 2))(conv4)
-    pool4 = Dropout(dropout_ratio)(pool4)
+    # 16 -> 8
+    c3 = downsample_block(c2, 3, [256, 256, 1024], stage=4, block='a')
+    c3 = residual_block(c3, 3, [256, 256, 1024], stage=4, block='b')
+    c3 = residual_block(c3, 3, [256, 256, 1024], stage=4, block='c')
+    c3 = residual_block(c3, 3, [256, 256, 1024], stage=4, block='d')
+    c3 = residual_block(c3, 3, [256, 256, 1024], stage=4, block='e')
+    c3 = residual_block(c3, 3, [256, 256, 1024], stage=4, block='f')
 
-    convm = Conv2D(start_neurons * 16, (3, 3), activation=None,
-                   padding='same')(pool4)
-    convm = residual_block(convm, start_neurons * 16)
-    convm = residual_block(convm, start_neurons * 16, True)
+    # 8 -> 4
+    cm = downsample_block(c3, 3, [512, 512, 2048], stage=5, block='a')
+    cm = residual_block(cm, 3, [512, 512, 2048], stage=5, block='b')
 
-    deconv4 = Conv2DTranspose(start_neurons * 8, (3, 3), strides=(2, 2),
-                              padding='same')(convm)
-    uconv4 = concatenate([deconv4, conv4])
-    uconv4 = Conv2D(start_neurons * 8, (3, 3), activation=None,
-                    padding='same')(uconv4)
-    uconv4 = residual_block(uconv4, start_neurons * 8)
-    uconv4 = residual_block(uconv4, start_neurons * 8, True)
-    uconv4 = Dropout(dropout_ratio)(uconv4)
+    # 4 -> 8
+    cm = residual_block(cm, 3, [512, 512, 2048], stage=5, block='c')
+    um = upsample_block(cm, [512, 256])
+    um = concatenate([um, c3])
+    um = Conv2D(256, (3, 3), padding='same')(um)
 
-    deconv3 = Conv2DTranspose(start_neurons * 4, (3, 3), strides=(2, 2),
-                              padding='valid')(uconv4)
-    uconv3 = concatenate([deconv3, conv3])
-    uconv3 = Dropout(dropout_ratio)(uconv3)
-    uconv3 = Conv2D(start_neurons * 4, (3, 3), activation=None,
-                    padding='same')(uconv3)
-    uconv3 = residual_block(uconv3, start_neurons * 4)
-    uconv3 = residual_block(uconv3, start_neurons * 4, True)
+    # 8 -> 16
+    u3 = residual_block(um, 3, [256, 256, 256], stage=6, block='f')
+    u3 = residual_block(u3, 3, [256, 256, 256], stage=6, block='e')
+    u3 = residual_block(u3, 3, [256, 256, 256], stage=6, block='d')
+    u3 = residual_block(u3, 3, [256, 256, 256], stage=6, block='c')
+    u3 = residual_block(u3, 3, [256, 256, 256], stage=6, block='b')
+    u3 = upsample_block(u3, [256, 128])
+    u3 = concatenate([u3, c2])
+    u3 = Conv2D(128, (3, 3), padding='same')(u3)
 
-    deconv2 = Conv2DTranspose(start_neurons * 2, (3, 3), strides=(2, 2),
-                              padding='same')(uconv3)
-    uconv2 = concatenate([deconv2, conv2])
+    # 16 -> 32
+    u2 = residual_block(u3, 3, [128, 128, 128], stage=7, block='d')
+    u2 = residual_block(u2, 3, [128, 128, 128], stage=7, block='c')
+    u2 = residual_block(u2, 3, [128, 128, 128], stage=7, block='b')
+    u2 = upsample_block(u2, [128, 64])
+    u2 = concatenate([u2, l1])
+    u2 = Conv2D(64, (3, 3), padding='same')(u2)
 
-    uconv2 = Conv2D(start_neurons * 2, (3, 3), activation=None,
-                    padding='same')(uconv2)
-    uconv2 = residual_block(uconv2, start_neurons * 2)
-    uconv2 = residual_block(uconv2, start_neurons * 2, True)
+    # 32 -> 64
+    u1 = residual_block(u2, 3, [64, 64, 64], stage=8, block='c')
+    u1 = residual_block(u1, 3, [64, 64, 64], stage=8, block='b')
+    u1 = upsample_block(u1, [64, 64])
+    u1 = concatenate([u1, c1])
+    u1 = Conv2D(64, (3, 3), padding='same')(u1)
 
-    deconv1 = Conv2DTranspose(start_neurons * 1, (3, 3), strides=(2, 2),
-                              padding='valid')(uconv2)
-    uconv1 = concatenate([deconv1, conv1])
-    uconv1 = Dropout(dropout_ratio)(uconv1)
+    # 64 -> 128
+    x = residual_block(u1, 3, [64, 64, 64], stage=9, block='c')
+    x = residual_block(x, 3, [64, 64, 64], stage=9, block='b')
+    x = Conv2DTranspose(64, (3, 3), strides=(2, 2), padding='same')(x)
+    x = Conv2D(1, (1, 1), padding='same')(x)
+    x = Activation('sigmoid')(x)
 
-    uconv1 = Conv2D(start_neurons * 1, (3, 3), activation=None,
-                    padding='same')(uconv1)
-    uconv1 = residual_block(uconv1, start_neurons * 1)
-    uconv1 = residual_block(uconv1, start_neurons * 1, True)
-
-    outputs = Conv2D(1, (1, 1), padding='same')(uconv1)
-    outputs = Activation('sigmoid')(outputs)
-
-    model = Model(inputs, outputs)
+    model = Model(inputs, x)
 
     if debug:
         with open(os.path.join(debug_dir, 'model.txt'), 'w') as f:

@@ -18,7 +18,7 @@ from sid import utils
 from sid.globals import file_model, progress, debug_dir, seed
 
 x_train, x_valid, y_train, y_valid = utils.get_train(0.2, seed)
-x_train, y_train = utils.preprocess_train(x_train, y_train, 3, seed)
+x_train, y_train = utils.preprocess_train(x_train, y_train, 2, seed)
 
 epochs = 50
 batch_size = 32
