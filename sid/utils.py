@@ -30,25 +30,32 @@ def get_train(validation_split=0.1, seed=None):
     path_masks = os.path.join(path, 'masks')
     ids = os.listdir(path_images)
     images = np.zeros((len(ids), height, width, channels), dtype=np.float32)
-    masks = np.zeros((len(ids), height, width, channels), dtype=np.uint8)
+    masks = np.zeros((len(ids), height, width, 1), dtype=np.uint8)
     coverages = []
     classes = []
     n = 0
 
     for id in tqdm(ids, total=len(ids)) if progress else ids:
-        image = Image.open(os.path.join(path_images, id)).convert('L')
+        if channels == 1:
+            image = Image.open(os.path.join(path_images, id)).convert('L')
+            image = np.array(image.resize((width, height)),
+                             dtype=np.float32)[..., np.newaxis] / 255
+        else:
+            image = Image.open(os.path.join(path_images, id))
+            image = np.array(image.resize((width, height)),
+                             dtype=np.float32) / 255
+
         mask = Image.open(os.path.join(path_masks, id)).convert('L')
-        image = np.array(image.resize((width, height)),
-                         dtype=np.float32)[..., np.newaxis] / 255
         mask = np.array(mask.resize((width, height)),
                         dtype=np.uint8)[..., np.newaxis] / 255
+
         images[n] = image
         masks[n] = mask
         n += 1
 
         # Get coverge class of mask.
         coverages.append(10 * np.sum(mask) /
-                         float(width * height * channels))
+                         float(width * height))
 
         for i in range(11):
             if coverages[-1] <= i:
@@ -151,7 +158,7 @@ def get_train(validation_split=0.1, seed=None):
 
 def preprocess_image(image, mask, preprocess):
     images = np.zeros((preprocess, height, width, channels), dtype=np.float32)
-    masks = np.zeros((preprocess, height, width, channels), dtype=np.bool)
+    masks = np.zeros((preprocess, height, width, 1), dtype=np.bool)
 
     for i in range(preprocess):
         pimage = image
@@ -200,14 +207,18 @@ def preprocess_train(x, y, preprocess, seed=None):
     print('Preprocessing images and masks...')
     images = np.zeros((preprocess * len(x), height, width, channels),
                       dtype=np.float32)
-    masks = np.zeros((preprocess * len(x), height, width, channels),
+    masks = np.zeros((preprocess * len(x), height, width, 1),
                      dtype=np.uint8)
     n = 0
     np.random.seed(seed)
 
     for i in trange(len(x)) if progress else range(len(x)):
-        image = Image.fromarray((x[i] * 255)[:, :, 0], 'F')
         mask = Image.fromarray((y[i] * 255)[:, :, 0])
+
+        if channels == 1:
+            image = Image.fromarray((x[i] * 255)[:, :, 0], 'F')
+        else:
+            image = Image.fromarray(x[i] * 255, 'RGB')
 
         for image, mask in preprocess_image(image, mask, preprocess):
             images[n] = image
@@ -225,7 +236,13 @@ def preprocess_train(x, y, preprocess, seed=None):
                                 figsize=(grid_width, grid_height))
 
         for i in range(num_images):
-            image = images[i][:, :, 0]
+            if channels == 1:
+                image = images[i][:, :, 0]
+            else:
+                image = np.array(
+                    Image.fromarray(images[i] * 255, 'RGB').convert('L'),
+                    dtype=np.float32) / 255
+
             mask = masks[i][:, :, 0]
             ax = axs[int(i / grid_width), i % grid_width]
             ax.imshow(image, cmap='Greys')

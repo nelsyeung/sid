@@ -1,9 +1,9 @@
+from keras.applications.resnet50 import ResNet50
 from keras.layers import (
     Activation,
     BatchNormalization,
     Conv2D,
     Conv2DTranspose,
-    Dropout,
     Input,
     MaxPooling2D,
     ZeroPadding2D,
@@ -100,46 +100,47 @@ def residual_block(input_tensor, kernel_size, filters, stage, block):
     return x
 
 
-def model(start_neurons=16, dropout_ratio=0.5):
-    inputs = Input((height, width, channels))
+def model():
+    # inputs = Input((height, width, channels))
+    model = ResNet50(include_top=False, input_shape=(width, height, channels))
 
-    # 128 -> 64
-    c1 = ZeroPadding2D(padding=(3, 3), name='conv1_pad')(inputs)
-    c1 = Conv2D(64, (7, 7), strides=(2, 2), padding='valid',
-                kernel_initializer='he_normal', name='conv1')(c1)
-    c1 = BatchNormalization(axis=3, name='bn_conv1')(c1)
-    c1 = Activation('relu')(c1)
+    # # 128 -> 64
+    # c1 = ZeroPadding2D(padding=(3, 3), name='conv1_pad')(inputs)
+    # c1 = Conv2D(64, (7, 7), strides=(2, 2), padding='valid',
+    #             kernel_initializer='he_normal', name='conv1')(c1)
+    # c1 = BatchNormalization(axis=3, name='bn_conv1')(c1)
+    # c1 = Activation('relu')(c1)
 
-    # 64 -> 32
-    p1 = ZeroPadding2D(padding=(1, 1), name='pool1_pad')(c1)
-    p1 = MaxPooling2D((3, 3), strides=(2, 2))(p1)
-    l1 = downsample_block(p1, 3, [64, 64, 256], stage=2, block='a',
-                          strides=(1, 1))
-    l1 = residual_block(l1, 3, [64, 64, 256], stage=2, block='b')
-    l1 = residual_block(l1, 3, [64, 64, 256], stage=2, block='c')
+    # # 64 -> 32
+    # p1 = ZeroPadding2D(padding=(1, 1), name='pool1_pad')(c1)
+    # p1 = MaxPooling2D((3, 3), strides=(2, 2))(p1)
+    # l1 = downsample_block(p1, 3, [64, 64, 256], stage=2, block='a',
+    #                       strides=(1, 1))
+    # l1 = residual_block(l1, 3, [64, 64, 256], stage=2, block='b')
+    # l1 = residual_block(l1, 3, [64, 64, 256], stage=2, block='c')
 
-    # 32 -> 16
-    c2 = downsample_block(l1, 3, [128, 128, 512], stage=3, block='a')
-    c2 = residual_block(c2, 3, [128, 128, 512], stage=3, block='b')
-    c2 = residual_block(c2, 3, [128, 128, 512], stage=3, block='c')
-    c2 = residual_block(c2, 3, [128, 128, 512], stage=3, block='d')
+    # # 32 -> 16
+    # c2 = downsample_block(l1, 3, [128, 128, 512], stage=3, block='a')
+    # c2 = residual_block(c2, 3, [128, 128, 512], stage=3, block='b')
+    # c2 = residual_block(c2, 3, [128, 128, 512], stage=3, block='c')
+    # c2 = residual_block(c2, 3, [128, 128, 512], stage=3, block='d')
 
-    # 16 -> 8
-    c3 = downsample_block(c2, 3, [256, 256, 1024], stage=4, block='a')
-    c3 = residual_block(c3, 3, [256, 256, 1024], stage=4, block='b')
-    c3 = residual_block(c3, 3, [256, 256, 1024], stage=4, block='c')
-    c3 = residual_block(c3, 3, [256, 256, 1024], stage=4, block='d')
-    c3 = residual_block(c3, 3, [256, 256, 1024], stage=4, block='e')
-    c3 = residual_block(c3, 3, [256, 256, 1024], stage=4, block='f')
+    # # 16 -> 8
+    # c3 = downsample_block(c2, 3, [256, 256, 1024], stage=4, block='a')
+    # c3 = residual_block(c3, 3, [256, 256, 1024], stage=4, block='b')
+    # c3 = residual_block(c3, 3, [256, 256, 1024], stage=4, block='c')
+    # c3 = residual_block(c3, 3, [256, 256, 1024], stage=4, block='d')
+    # c3 = residual_block(c3, 3, [256, 256, 1024], stage=4, block='e')
+    # c3 = residual_block(c3, 3, [256, 256, 1024], stage=4, block='f')
 
-    # 8 -> 4
-    cm = downsample_block(c3, 3, [512, 512, 2048], stage=5, block='a')
-    cm = residual_block(cm, 3, [512, 512, 2048], stage=5, block='b')
+    # # 8 -> 4
+    # cm = downsample_block(c3, 3, [512, 512, 2048], stage=5, block='a')
+    # cm = residual_block(cm, 3, [512, 512, 2048], stage=5, block='b')
+    # cm = residual_block(cm, 3, [512, 512, 2048], stage=5, block='c')
 
     # 4 -> 8
-    cm = residual_block(cm, 3, [512, 512, 2048], stage=5, block='c')
-    um = upsample_block(cm, [512, 256])
-    um = concatenate([um, c3])
+    um = upsample_block(model.output, [512, 256])
+    um = concatenate([um, model.get_layer('activation_40').output])
     um = Conv2D(256, (3, 3), padding='same')(um)
 
     # 8 -> 16
@@ -149,7 +150,7 @@ def model(start_neurons=16, dropout_ratio=0.5):
     u3 = residual_block(u3, 3, [256, 256, 256], stage=6, block='c')
     u3 = residual_block(u3, 3, [256, 256, 256], stage=6, block='b')
     u3 = upsample_block(u3, [256, 128])
-    u3 = concatenate([u3, c2])
+    u3 = concatenate([u3, model.get_layer('activation_22').output])
     u3 = Conv2D(128, (3, 3), padding='same')(u3)
 
     # 16 -> 32
@@ -157,14 +158,14 @@ def model(start_neurons=16, dropout_ratio=0.5):
     u2 = residual_block(u2, 3, [128, 128, 128], stage=7, block='c')
     u2 = residual_block(u2, 3, [128, 128, 128], stage=7, block='b')
     u2 = upsample_block(u2, [128, 64])
-    u2 = concatenate([u2, l1])
+    u2 = concatenate([u2, model.get_layer('activation_10').output])
     u2 = Conv2D(64, (3, 3), padding='same')(u2)
 
     # 32 -> 64
     u1 = residual_block(u2, 3, [64, 64, 64], stage=8, block='c')
     u1 = residual_block(u1, 3, [64, 64, 64], stage=8, block='b')
     u1 = upsample_block(u1, [64, 64])
-    u1 = concatenate([u1, c1])
+    u1 = concatenate([u1, model.get_layer('activation_1').output])
     u1 = Conv2D(64, (3, 3), padding='same')(u1)
 
     # 64 -> 128
@@ -174,7 +175,7 @@ def model(start_neurons=16, dropout_ratio=0.5):
     x = Conv2D(1, (1, 1), padding='same')(x)
     x = Activation('sigmoid')(x)
 
-    model = Model(inputs, x)
+    model = Model(model.input, x)
 
     if debug:
         with open(os.path.join(debug_dir, 'model.txt'), 'w') as f:
