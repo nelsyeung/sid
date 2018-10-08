@@ -198,7 +198,7 @@ def preprocess_image(image, mask, preprocess):
         if channels == 1:
             images[i] = np.array(pimage.convert('L'))[..., np.newaxis]
         else:
-            images[i] = np.array(pimage)
+            images[i] = np.array(pimage.convert('RGB'))
 
     return zip(images / 255, masks)
 
@@ -213,12 +213,8 @@ def preprocess_train(x, y, preprocess, seed=None):
     np.random.seed(seed)
 
     for i in trange(len(x)) if progress else range(len(x)):
+        image = Image.fromarray((x[i] * 255)[:, :, 0], 'F')
         mask = Image.fromarray((y[i] * 255)[:, :, 0])
-
-        if channels == 1:
-            image = Image.fromarray((x[i] * 255)[:, :, 0], 'F')
-        else:
-            image = Image.fromarray(x[i] * 255, 'RGB')
 
         for image, mask in preprocess_image(image, mask, preprocess):
             images[n] = image
@@ -236,13 +232,7 @@ def preprocess_train(x, y, preprocess, seed=None):
                                 figsize=(grid_width, grid_height))
 
         for i in range(num_images):
-            if channels == 1:
-                image = images[i][:, :, 0]
-            else:
-                image = np.array(
-                    Image.fromarray(images[i] * 255, 'RGB').convert('L'),
-                    dtype=np.float32) / 255
-
+            image = images[i][:, :, 0]
             mask = masks[i][:, :, 0]
             ax = axs[int(i / grid_width), i % grid_width]
             ax.imshow(image, cmap='Greys')

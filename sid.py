@@ -18,15 +18,15 @@ from sid import utils
 from sid.globals import file_model, progress, debug_dir, seed
 
 x_train, x_valid, y_train, y_valid = utils.get_train(0.2, seed)
-x_train, y_train = utils.preprocess_train(x_train, y_train, 2, seed)
+x_train, y_train = utils.preprocess_train(x_train, y_train, 8, seed)
 
-epochs = 50
+epochs = 30
 batch_size = 32
 
 verbose = 1 if progress else 2
 # Fit with binary crossentropy loss
 model = nn.model()
-model.compile(loss='binary_crossentropy', optimizer=Adam(0.01),
+model.compile(loss='binary_crossentropy', optimizer=Adam(),
               metrics=[metric.mean_iou])
 model_checkpoint = ModelCheckpoint(file_model, monitor='mean_iou',
                                    verbose=1, save_best_only=True, mode='max')
@@ -59,7 +59,7 @@ model = Model(model.layers[0].input, model.layers[-1].input)
 # lovasz_loss need input range (-inf, +inf), so cancel the last "sigmoid"
 # activation Then the default threshod for pixel prediction is 0 instead of
 # 0.5, as in mean_iou2.
-model.compile(loss=loss.lovasz_loss, optimizer=Adam(0.01),
+model.compile(loss=loss.lovasz_loss, optimizer=Adam(),
               metrics=[metric.mean_iou2])
 early_stopping = EarlyStopping(monitor='val_mean_iou2', patience=10, verbose=1,
                                mode='max')
