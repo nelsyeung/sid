@@ -104,40 +104,6 @@ def model():
     # inputs = Input((height, width, channels))
     model = ResNet50(include_top=False, input_shape=(width, height, channels))
 
-    # # 128 -> 64
-    # c1 = ZeroPadding2D(padding=(3, 3), name='conv1_pad')(inputs)
-    # c1 = Conv2D(64, (7, 7), strides=(2, 2), padding='valid',
-    #             kernel_initializer='he_normal', name='conv1')(c1)
-    # c1 = BatchNormalization(axis=3, name='bn_conv1')(c1)
-    # c1 = Activation('relu')(c1)
-
-    # # 64 -> 32
-    # p1 = ZeroPadding2D(padding=(1, 1), name='pool1_pad')(c1)
-    # p1 = MaxPooling2D((3, 3), strides=(2, 2))(p1)
-    # l1 = downsample_block(p1, 3, [64, 64, 256], stage=2, block='a',
-    #                       strides=(1, 1))
-    # l1 = residual_block(l1, 3, [64, 64, 256], stage=2, block='b')
-    # l1 = residual_block(l1, 3, [64, 64, 256], stage=2, block='c')
-
-    # # 32 -> 16
-    # c2 = downsample_block(l1, 3, [128, 128, 512], stage=3, block='a')
-    # c2 = residual_block(c2, 3, [128, 128, 512], stage=3, block='b')
-    # c2 = residual_block(c2, 3, [128, 128, 512], stage=3, block='c')
-    # c2 = residual_block(c2, 3, [128, 128, 512], stage=3, block='d')
-
-    # # 16 -> 8
-    # c3 = downsample_block(c2, 3, [256, 256, 1024], stage=4, block='a')
-    # c3 = residual_block(c3, 3, [256, 256, 1024], stage=4, block='b')
-    # c3 = residual_block(c3, 3, [256, 256, 1024], stage=4, block='c')
-    # c3 = residual_block(c3, 3, [256, 256, 1024], stage=4, block='d')
-    # c3 = residual_block(c3, 3, [256, 256, 1024], stage=4, block='e')
-    # c3 = residual_block(c3, 3, [256, 256, 1024], stage=4, block='f')
-
-    # # 8 -> 4
-    # cm = downsample_block(c3, 3, [512, 512, 2048], stage=5, block='a')
-    # cm = residual_block(cm, 3, [512, 512, 2048], stage=5, block='b')
-    # cm = residual_block(cm, 3, [512, 512, 2048], stage=5, block='c')
-
     # 4 -> 8
     um = upsample_block(model.output, [512, 256])
     um = concatenate([um, model.get_layer('activation_40').output])
