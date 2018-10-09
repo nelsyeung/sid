@@ -1,12 +1,9 @@
-from keras.applications.resnet50 import ResNet50
+from keras.applications.inception_resnet_v2 import InceptionResNetV2
 from keras.layers import (
     Activation,
     BatchNormalization,
     Conv2D,
     Conv2DTranspose,
-    Input,
-    MaxPooling2D,
-    ZeroPadding2D,
     add,
     concatenate,
 )
@@ -22,20 +19,9 @@ from .globals import (
 )
 
 
-def upsample_block(input_tensor, filters):
-    x = Conv2D(filters[0], (3, 3), padding='same',
-               kernel_initializer='he_normal')(input_tensor)
+def upsample_block(input_tensor, filters, kernel_size=(3, 3)):
+    x = Conv2DTranspose(filters[1], kernel_size, strides=(2, 2))(input_tensor)
     x = BatchNormalization(axis=3)(x)
-    x = Activation('relu')(x)
-
-    x = Conv2DTranspose(filters[1], (3, 3), strides=(2, 2), padding='same')(x)
-    x = BatchNormalization(axis=3)(x)
-
-    shortcut = Conv2DTranspose(filters[1], (2, 2), strides=(2, 2),
-                               kernel_initializer='he_normal')(input_tensor)
-    shortcut = BatchNormalization(axis=3)(shortcut)
-
-    x = add([x, shortcut])
     x = Activation('relu')(x)
     return x
 
@@ -102,42 +88,37 @@ def residual_block(input_tensor, kernel_size, filters, stage, block):
 
 def model():
     # inputs = Input((height, width, channels))
-    model = ResNet50(include_top=False, input_shape=(width, height, channels))
+    model = InceptionResNetV2(False, input_shape=(width, height, channels))
+    f = 1536
 
-    # 4 -> 8
-    um = upsample_block(model.output, [512, 256])
-    um = concatenate([um, model.get_layer('activation_40').output])
-    um = Conv2D(256, (3, 3), padding='same')(um)
+    # 2 -> 5
+    um = upsample_block(model.output, [f, f/2])
+    um = concatenate([um, model.get_layer('activation_162').output])
+    um = Conv2D(f/2, (3, 3), padding='same')(um)
+    um = Conv2D(f/2, (3, 3), padding='same')(um)
 
-    # 8 -> 16
-    u3 = residual_block(um, 3, [256, 256, 256], stage=6, block='f')
-    u3 = residual_block(u3, 3, [256, 256, 256], stage=6, block='e')
-    u3 = residual_block(u3, 3, [256, 256, 256], stage=6, block='d')
-    u3 = residual_block(u3, 3, [256, 256, 256], stage=6, block='c')
-    u3 = residual_block(u3, 3, [256, 256, 256], stage=6, block='b')
-    u3 = upsample_block(u3, [256, 128])
-    u3 = concatenate([u3, model.get_layer('activation_22').output])
-    u3 = Conv2D(128, (3, 3), padding='same')(u3)
+    # 5 -> 11
+    u3 = upsample_block(um, [f/2, f/4])
+    u3 = concatenate([u3, model.get_layer('activation_75').output])
+    u3 = Conv2D(f/4, (3, 3), padding='same')(u3)
+    u3 = Conv2D(f/4, (3, 3), padding='same')(u3)
 
-    # 16 -> 32
-    u2 = residual_block(u3, 3, [128, 128, 128], stage=7, block='d')
-    u2 = residual_block(u2, 3, [128, 128, 128], stage=7, block='c')
-    u2 = residual_block(u2, 3, [128, 128, 128], stage=7, block='b')
-    u2 = upsample_block(u2, [128, 64])
-    u2 = concatenate([u2, model.get_layer('activation_10').output])
-    u2 = Conv2D(64, (3, 3), padding='same')(u2)
+    # 11 -> 24
+    u2 = upsample_block(u3, [f/4, f/8], (4, 4))
+    u2 = concatenate([u2, model.get_layer('activation_5').output])
+    u2 = Conv2D(f/8, (3, 3), padding='same')(u2)
+    u2 = Conv2D(f/8, (3, 3), padding='same')(u2)
 
-    # 32 -> 64
-    u1 = residual_block(u2, 3, [64, 64, 64], stage=8, block='c')
-    u1 = residual_block(u1, 3, [64, 64, 64], stage=8, block='b')
-    u1 = upsample_block(u1, [64, 64])
-    u1 = concatenate([u1, model.get_layer('activation_1').output])
-    u1 = Conv2D(64, (3, 3), padding='same')(u1)
+    # 24 -> 50
+    u1 = upsample_block(u2, [f/8, f/16], (4, 4))
+    u1 = concatenate([u1, model.get_layer('activation_3').output])
+    u1 = Conv2D(f/16, (3, 3), padding='same')(u1)
+    u1 = Conv2D(f/16, (3, 3), padding='same')(u1)
 
-    # 64 -> 128
-    x = residual_block(u1, 3, [64, 64, 64], stage=9, block='c')
-    x = residual_block(x, 3, [64, 64, 64], stage=9, block='b')
-    x = Conv2DTranspose(64, (3, 3), strides=(2, 2), padding='same')(x)
+    # 50 -> 101
+    x = upsample_block(u1, [f/16, f/32], (3, 3))
+    x = Conv2D(f/32, (3, 3), padding='same')(x)
+    x = Conv2D(f/32, (3, 3), padding='same')(x)
     x = Conv2D(1, (1, 1), padding='same')(x)
     x = Activation('sigmoid')(x)
 
